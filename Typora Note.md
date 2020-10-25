@@ -1,5 +1,5 @@
 
-git pull origin 
+git pull origin 分支名 
 
 # Typora Note
 
