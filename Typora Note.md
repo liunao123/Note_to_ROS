@@ -1,3 +1,6 @@
+
+git pull origin 
+
 # Typora Note
 
 ## 标题
