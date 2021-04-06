@@ -80,4 +80,24 @@ package是catkin编译的对象,对其进行递归编译
    rosdep install [pkg_name]
    ~~~
 
-   
+
+7. rosbag
+
+~~~
+rosbag info bagname.bag
+
+
+播放一个包，用rviz进行可视化
+roscore
+rosbag play bagname.bag
+rosrun rviz rviz
+
+
+rosbag record -a //订阅所有topic，重新写到一个bag文件里
+
+ //订阅某些topic，记录300s的时间
+rosbag record /sacn /laser /imu --duration 300
+
+
+~~~
+

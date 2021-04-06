@@ -109,7 +109,7 @@ b = a;
 
 
 
-~~~
+~~~c++
 inline String& String::operator=(const String& str)
 {
 	if(this == &str)//检测自我赋值-self assignment-非常重要
@@ -121,6 +121,34 @@ inline String& String::operator=(const String& str)
 
 }
 ~~~
+
+
+
+# 20210217-HJ-16-vector深度搜索
+
+
+
+# 20210217-HJ-17
+
+![image-20210217100456608](/home/xiaofan/.config/Typora/typora-user-images/image-20210217100456608.png)
+
+
+
+# 20210217-HJ-18
+
+## deque
+
+
+
+![Screenshot from 2021-02-17 10-22-06](/home/xiaofan/Pictures/Screenshot from 2021-02-17 10-22-06.png)
+
+
+
+
+
+
+
+
 
 
 
