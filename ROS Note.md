@@ -83,20 +83,45 @@ package是catkin编译的对象,对其进行递归编译
 
 7. rosbag
 
+   ~~~
+   rosbag info bagname.bag
+   
+   
+   播放一个包，用rviz进行可视化
+   roscore
+   rosbag play bagname.bag
+   rosrun rviz rviz
+   
+   
+   rosbag record -a //订阅所有topic，重新写到一个bag文件里
+   
+    //订阅某些topic，记录300s的时间
+   rosbag record /sacn /laser /imu --duration 300
+   
+   ~~~
+
+   
+
+8. 
+
+9. 官方文档的笔记
+
+   ~~~
+   rosmsg show geometry_msgs/Pose
+   rosrun rqt_plot rqt_plot
+   
+   rostopic hz /turtle1/pose
+   rostopic info  /turtle1/cmd_vel
+   rostopic pub  -r 3  /turtle1/cmd_vel geometry_msgs/Twist -- '[2.10, 0.1, 0.0]' '[0.0, 0.0, 3.28]'
+   rostopic type /turtle1/cmd_vel
+   rosrun turtlesim turtlesim_node __name:=m
+   ~~~
+
+   
+
+10. 
+
 ~~~
-rosbag info bagname.bag
-
-
-播放一个包，用rviz进行可视化
-roscore
-rosbag play bagname.bag
-rosrun rviz rviz
-
-
-rosbag record -a //订阅所有topic，重新写到一个bag文件里
-
- //订阅某些topic，记录300s的时间
-rosbag record /sacn /laser /imu --duration 300
 
 
 ~~~
