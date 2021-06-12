@@ -65,7 +65,17 @@ notice：
 LUA file can contain other LUA file, so you should check all file that used.
 
 
+1 完成轨迹，不接受下一步数据
 
+$ rosservice call /finish_trajectory 0
+2 序列化保存当前状态（地图保存为.pbstream形式）
+
+$ rosservice call /write_state "{filename: '${HOME}/Downloads/mymap.pbstream'}"
+3 将.pbstream形式地图转化成.pgm和.yaml（ROS标准形式地图）
+
+利用 cartographer_pbstream_to_ros_map 节点
+
+$ rosrun cartographer_ros cartographer_pbstream_to_ros_map -map_filestem=${HOME}/Downloads/mymap -pbstream_filename=${HOME}/Downloads/mymap.pbstream -resolution=0.05
 
 
 
