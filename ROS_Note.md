@@ -106,12 +106,11 @@ package是catkin编译的对象,对其进行递归编译
 
 9. ACTION
 
-10. ~~~
-    rqt
-    //直接的得到 tf tree
-    rosrun tf tf_echo /tf1 /tf2
-    //得到tf2相对于tf1<以 tf1 为坐标原点>的变换关系，
-    //得到的值等于  tf2 - tf1，
+10. ~~~bash
+    
+    
+    ~~~
+    
     
 
    ~~~
@@ -146,4 +145,67 @@ rqt --force-discover
 
 ~~~
 
+
+
 ## TF
+
+~~~
+rqt
+//直接的得到 tf tree
+rosrun tf tf_echo /tf1 /tf2
+//得到tf2相对于tf1<以 tf1 为坐标原点>的变换关系，
+//得到的值等于  tf2 - tf1，
+
+/<target_frame>相对于<source_frame>的变换（坐标及旋转）
+rosrun tf tf_monitor <source_frame> <target_frame> 
+rosrun tf tf_monitor world turtle1
+rosrun tf_echo <source_frame> <target_frame> 
+rosrun tf tf_echo world turtle1
+
+~~~
+
+
+
+
+
+
+
+## odom messgae
+
+![image-20210514153938838](/home/l/.config/Typora/typora-user-images/image-20210514153938838.png)
+
+odom中，pose的数据以odom为frame
+
+twist数据以child_frame_id为坐标系
+
+
+
+
+
+## rosbag filter
+
+## 将特定topic、特定tf tree上的某些connection 记录下来，
+
+~~~
+rosbag filter input.bag output22.bag " topic == '/scan' or topic == '/odom' or topic == '/tf' and  m.transforms[0].header.frame_id != '/map' and m.transforms[0].child_frame_id != 'odom' "
+
+
+rosbag filter in.bag out.bag " topic == '/imu_50' or topic == '/scan' or topic == '/odom' or topic == '/tf' and  m.transforms[0].header.frame_id != '/map' and m.transforms[0].child_frame_id != 'odom' and  m.transforms[0].header.frame_id != '/odom' and m.transforms[0].child_frame_id != 'base_link'"
+
+rosbag filter t.bag tout.bag "topic == '/imu' or topic == '/scan' or topic == '/odom' or topic == '/tf' and  m.transforms[0].header.frame_id != '/map' and m.transforms[0].child_frame_id != 'odom' and  m.transforms[0].header.frame_id != '/odom' and m.transforms[0].child_frame_id != 'base_link'"
+
+
+
+截取一段时间内的
+rosbag filter '/home/l/Desktop/run_cartographer_on_robot/20210611/2021-06-11-huashi/2021-06-11-15-28-46.bag'  tout.bag " t.to_sec() >= 1623396526.00 and t.to_sec() <= 1623397056.00 "
+~~~
+
+例子，去除map-odom，和odom-base_link的tf
+
+<img src="/home/l/Desktop/Note/Note_to_ROS/frames.png" alt="frames" style="zoom:80%;" />
+
+
+
+## rosbag extract sth to txt
+
+rostopic echo -b <BAGFILE> -p <TOPIC> > <output>.txt

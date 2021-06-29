@@ -19,7 +19,7 @@ git submodule使用
 git clone git@gitee.com:sagetech/c20009.git
 cd c20009/
 git status
-git checkout library_robot_baotu 
+git checkout library_robot_baotu //切换分支
 git submodule update
 git submodule init
 git submodule update

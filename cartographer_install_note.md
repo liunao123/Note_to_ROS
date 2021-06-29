@@ -1,12 +1,3 @@
-
-one way:
-if you haved installed ROS melodic,just run next cmd(cartographer-ros version is 1.0.0);
-$ sudo apt install ros-melodic-cartographer-ros
-
-two way:
-
-reference: https://www.cnblogs.com/hitcm/p/5939507.html
-
 向大神致敬,第一种国内大神修改版如下:
 
 1.install dependency

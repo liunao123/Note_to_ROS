@@ -33,9 +33,16 @@ rosbag filter 2021-06-07-19-46-09.bag 2021-06-07-19-46-09-tout.bag "topic == '/j
 ##### rosbag 
 rosbag filter 2021-06-07-19-46-09.bag 2021-06-07-19-46-09-tout.bag "topic == '/joy' or topic == '/joy/cmd_vel' or topic == '/imu' or topic == '/scan' or topic == '/odom' or topic == '/tf_static' or topic == '/tf' and  m.transforms[0].header.frame_id != '/map' and m.transforms[0].child_frame_id != 'odom' "
 
-#rosbag filter 2021-04-28-17-10-42-out.bag 2021-04-28-17-10-42-out-out.bag "t.to_sec() >= 1619601045 and t.to_sec() <= 1619602750"
 
-rosbag filter 2021-06-09-14-53-26.bag tout.bag "topic == '/scan' or topic == '/odom' or topic == '/tf' and  m.transforms[0].header.frame_id != '/odom' and m.transforms[0].child_frame_id != 'base_link' "
+
+
+rosbag filter tout.bag tout-350.bag "t.to_sec() >= 1624343370 and t.to_sec() <= 1624343660 "
+
+
+rosbag filter 2021-06-22-13-12-33.bag tout.bag "topic == '/scan' or topic == '/odom' or topic == '/tf' and  m.transforms[0].header.frame_id != '/map' and m.transforms[0].child_frame_id != 'odom' "
+
+
+rosbag filter 2021-06-22-14-29-13.bag tout.bag "topic == '/scan' or topic == '/odom' or topic == '/tf' and  m.transforms[0].header.frame_id != '/odom' and m.transforms[0].child_frame_id != 'base_link' "
 
  python '/home/xiaofan/catkin_gy/src/robot_localization_tools/scripts/remove_tf.py'
 
@@ -53,7 +60,7 @@ $ rosservice call /write_state "{filename: '${HOME}/Downloads/mymap.pbstream'}"
 利用 cartographer_pbstream_to_ros_map 节点
 $ rosrun cartographer_ros cartographer_pbstream_to_ros_map -map_filestem=${HOME}/Downloads/mymap -pbstream_filename=${HOME}/Downloads/mymap.pbstream -resolution=0.05
 
-# rosrun cartographer_ros cartographer_pbstream_to_ros_map -resolution=0.05 -map_filestem=false -pbstream_filename=false.pbstream
+# rosrun cartographer_ros cartographer_pbstream_to_ros_map -resolution=0.05 -map_filestem=0.25 -pbstream_filename=1.bag.pbstream
 
 ############3  evo_traj  
 
