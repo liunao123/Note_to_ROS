@@ -12,7 +12,7 @@ roslaunch cartographer_ros library_backpack_2d_localization.launch load_state_fi
 
 #roslaunch cartographer_ros library.launch
 
-roslaunch cartographer_ros library_offline_backpack_2d.launch bag_filenames:=
+roslaunch cartographer_ros library_offline_backpack_2d.launch bag_filenames:=/home/xiaofan/catkin_map/project/3-10.13/out.bag
 
 
 #定位
@@ -31,18 +31,18 @@ rosbag filter 2021-06-07-19-46-09.bag 2021-06-07-19-46-09-tout.bag "topic == '/j
 
 
 ##### rosbag 
-rosbag filter 2021-06-07-19-46-09.bag 2021-06-07-19-46-09-tout.bag "topic == '/joy' or topic == '/joy/cmd_vel' or topic == '/imu' or topic == '/scan' or topic == '/odom' or topic == '/tf_static' or topic == '/tf' and  m.transforms[0].header.frame_id != '/map' and m.transforms[0].child_frame_id != 'odom' "
+rosbag filter sage_5_hill_odom_robot_locate.bag out.bag "topic == '/tf' or topic == '/odom' or topic == 'imu/date_corrected' or topic == '/scan' or topic == '/odom' or topic == '/tf_static' or topic == '/tf' and  m.transforms[0].header.frame_id != '/map' and m.transforms[0].child_frame_id != 'odom' "
 
 
 
 
-rosbag filter tout.bag tout-350.bag "t.to_sec() >= 1624343370 and t.to_sec() <= 1624343660 "
+rosbag filter out.bag tout.bag "t.to_sec() >= 1633934200 and t.to_sec() <= 1633936781.56 "
 
 
-rosbag filter 2021-06-22-13-12-33.bag tout.bag "topic == '/scan' or topic == '/odom' or topic == '/tf' and  m.transforms[0].header.frame_id != '/map' and m.transforms[0].child_frame_id != 'odom' "
+rosbag filter 2021-10-11-14-49-03.bag out.bag "topic == '/scan' or topic == '/odom' or topic == '/tf' and  m.transforms[0].header.frame_id != '/map' and m.transforms[0].child_frame_id != 'odom' "
 
 
-rosbag filter 2021-06-22-14-29-13.bag tout.bag "topic == '/scan' or topic == '/odom' or topic == '/tf' and  m.transforms[0].header.frame_id != '/odom' and m.transforms[0].child_frame_id != 'base_link' "
+rosbag filter lslidar_16.bag lslidar_16_out.bag "topic == '/lslidar_point_cloud' or topic == '/odom' or topic == '/tf' and  m.transforms[0].header.frame_id != '/odom' and m.transforms[0].child_frame_id != 'base_link' "
 
  python '/home/xiaofan/catkin_gy/src/robot_localization_tools/scripts/remove_tf.py'
 
