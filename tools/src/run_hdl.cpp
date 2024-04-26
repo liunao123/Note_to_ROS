@@ -16,6 +16,7 @@ bool    g_bExit = false;
 
 void PressEnterToExit( )
 {
+    // system("source /opt/csg/LX100/navs/devel/setup.bash; roslaunch hdl_localization load_global_map.launch &");
     int c;
     while ( (c = getchar()) != 'c' && c != EOF );
     fprintf( stderr, "\nPress 'c' then Press enter to exit.\n");
@@ -25,6 +26,7 @@ void PressEnterToExit( )
 
 void handle_signal(int signum) {
     printf("\n\n\n\nexit(1)\n\n\n\n\n"); 
+
     exit(1);
 }
 
@@ -49,12 +51,14 @@ int main(int argc, char **argv)
   // measurement_process.detach();
 
   std::signal(SIGINT, handle_signal);
+  sleep( 3 );
 
   while ( num++ < 5 )
   {
-    std::string mv_file = "mv /home/map/hdl_pose.txt  /home/map/test/hdl_pose_changzhou_odom_" + std::to_string( num )  + ".txt ";
+    std::string mv_file = "mv /home/map/hdl_pose.txt  /home/map/hdl_pose_changzhou_odom_" + std::to_string( num )  + ".txt ";
 
-    system("source /opt/csg/LX100/navs/devel/setup.bash; roslaunch hdl_localization hdl_localization.launch");
+    // system("source /opt/csg/LX100/navs/devel/setup.bash; roslaunch hdl_localization hdl_localization.launch");
+    system("source /home/liunao/csg/SH100/slam/navs/devel/setup.bash; roslaunch hdl_localization hdl_localization.launch");
 
     std::cout << mv_file << std::endl;
 

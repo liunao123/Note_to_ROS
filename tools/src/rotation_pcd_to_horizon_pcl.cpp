@@ -41,7 +41,7 @@ int main(int argc, char **argv)
   // 分割方法：随机采样法
   seg.setMethodType(pcl::SAC_RANSAC);
   // 设置误差容忍范围，也就是我说过的阈值
-  seg.setDistanceThreshold(0.001);
+  seg.setDistanceThreshold(0.1);
   // 输入点云
   seg.setInputCloud(cloud.makeShared());
   // 分割点云
@@ -60,10 +60,10 @@ int main(int argc, char **argv)
             << coefficients->values[2] << " "
             << coefficients->values[3] << std::endl;
 
-  float select_x = 5;
-  float select_y = 0;
+  float select_x = 5.72;
+  float select_y = 81.1;
 
-  float range = 10.0;
+  float range = 1.50;
   pcl::PointCloud<pcl::PointXYZ> cloud_in_1m;
   static pcl::CropBox<pcl::PointXYZ> cropBoxFilter_temp(true);
   cropBoxFilter_temp.setInputCloud(cloud.makeShared());
@@ -71,28 +71,28 @@ int main(int argc, char **argv)
   cropBoxFilter_temp.setMax(Eigen::Vector4f(select_x + range, select_y + range, 3, 1.0f));
   cropBoxFilter_temp.setNegative(false);
   cropBoxFilter_temp.filter(cloud_in_1m);
-  std::cout << "cloud_in_1m size: " << cloud_in_1m.points.size() << std::endl;
+  std::cout << "cloud_in_1--m size: " << cloud_in_1m.points.size() << std::endl;
 
-  // if (cloud_in_1m.points.size() > 20)
-  // {
-  //   // 输入点云
-  //   seg.setInputCloud(cloud_in_1m.makeShared());
-  //   // 分割点云
-  //   seg.segment(*inliers, *coefficients);
+  if (cloud_in_1m.points.size() > 20)
+  {
+    // 输入点云
+    seg.setInputCloud(cloud_in_1m.makeShared());
+    // 分割点云
+    seg.segment(*inliers, *coefficients);
 
-  //   if (inliers->indices.size() == 0)
-  //   {
-  //     PCL_ERROR("Could not estimate a planar model for the given dataset. EXIT . ");
-  //     return (-1);
-  //   }
+    if (inliers->indices.size() == 0)
+    {
+      PCL_ERROR("Could not estimate a planar model for the given dataset. EXIT . ");
+      return (-1);
+    }
 
-  //   std::cout << "get planar model size: " << inliers->indices.size() << std::endl;
+    std::cout << "get planar model size: " << inliers->indices.size() << std::endl;
 
-  //   std::cerr << "Model coefficients: " << coefficients->values[0] << " "
-  //             << coefficients->values[1] << " "
-  //             << coefficients->values[2] << " "
-  //             << coefficients->values[3] << std::endl;
-  // }
+    std::cerr << "Model coefficients: " << coefficients->values[0] << " "
+              << coefficients->values[1] << " "
+              << coefficients->values[2] << " "
+              << coefficients->values[3] << std::endl;
+  }
   // 参考: https://blog.csdn.net/weixin_38636815/article/details/109543753
 
   // 首先求解出旋转轴和旋转向量
@@ -146,7 +146,7 @@ int main(int argc, char **argv)
     pcl::PointXYZ pt;
     pt.x = new_point.x();
     pt.y = new_point.y();
-    pt.z = new_point.z(); //-  mean_z ;
+    pt.z = new_point.z() - mean_z ;
     flat_cloud.points.push_back(pt);
     int process = int(100 * double(i) / cloud.points.size());
     if (i % int(cloud.points.size() / 5) == 0)

@@ -127,7 +127,7 @@ int main(int argc, char **argv)
 	// return 0;
 
 
-	std::string work_dir = "/home/roslog/";
+	std::string work_dir = "/home/lj/";
 	std::cout << "Your work dir is : " << work_dir << std::endl;
 
 	// 这个读取的顺序是对的
@@ -145,7 +145,7 @@ int main(int argc, char **argv)
 	}
 	    cout << "all_cloud size " << all_cloud->size() << endl;
 
-	filter_sth(all_cloud);
+	// filter_sth(all_cloud);
 
     pcl::io::savePCDFileASCII("/home/map/saveMap.pcd", *all_cloud);
 	    cout << "all_cloud size " << all_cloud->size() << endl;

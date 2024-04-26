@@ -14,38 +14,45 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 
-SET(src_file remove_outlier_pt)
+SET(src_file read_xml)
 add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}  ${PCL_LIBRARIES}   )
+target_link_libraries (${src_file}  )
+
+# SET(src_file four_param_tf)
+# add_executable (${src_file} src/${src_file}.cpp )
+# target_link_libraries (${src_file}  )
+
+# SET(src_file remove_outlier_pt)
+# add_executable (${src_file} src/${src_file}.cpp )
+# target_link_libraries (${src_file}    ${PCL_LIBRARIES}   )
 
 
+# SET(src_file run_hba)
+# add_executable (${src_file} src/${src_file}.cpp )
+# target_link_libraries (${src_file}   )
 
-SET(src_file run_hba)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}   )
+# SET(src_file trans_gt_world)
+# add_executable (${src_file} src/${src_file}.cpp )
+# target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
 
-SET(src_file trans_gt_world)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
-
-SET(src_file test)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}   )
-
-
-SET(src_file get_mean_pose_from_hdl)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
+# SET(src_file test)
+# add_executable (${src_file} src/${src_file}.cpp )
+# target_link_libraries (${src_file}   )
 
 
-SET(src_file cal_camera2imu)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}   )
+# SET(src_file get_mean_pose_from_hdl)
+# add_executable (${src_file} src/${src_file}.cpp )
+# target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
 
 
-SET(src_file get_box_point_for_cab)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file} ${PCL_LIBRARIES}  )
+# SET(src_file cal_camera2imu)
+# add_executable (${src_file} src/${src_file}.cpp )
+# target_link_libraries (${src_file}   )
+
+
+# SET(src_file get_box_point_for_cab)
+# add_executable (${src_file} src/${src_file}.cpp )
+# target_link_libraries (${src_file} ${PCL_LIBRARIES}  )
 
 # SET(src_file add_pcd)
 # add_executable (${src_file} src/${src_file}.cpp )
@@ -56,19 +63,19 @@ target_link_libraries (${src_file} ${PCL_LIBRARIES}  )
 # add_executable (${src_file} src/${src_file}.cpp )
 # target_link_libraries (${src_file} ${OpenCV_LIBS}  )
 
-SET(src_file run_livo)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file} ${PCL_LIBRARIES} )
+# SET(src_file run_livo)
+# add_executable (${src_file} src/${src_file}.cpp )
+# target_link_libraries (${src_file} ${PCL_LIBRARIES} )
 
 
-SET(src_file run_livos)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}  )
+# SET(src_file run_livos)
+# add_executable (${src_file} src/${src_file}.cpp )
+# target_link_libraries (${src_file}  )
 
 
-SET(src_file run_hdl)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
+# SET(src_file run_hdl)
+# add_executable (${src_file} src/${src_file}.cpp )
+# target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
 
 
 # SET(src_file read_pose_from_jpu)
@@ -76,14 +83,14 @@ target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
 # target_link_libraries (${src_file} )
 
 
-SET(src_file rotation_pcd_to_horizon_pcl)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file} ${PCL_LIBRARIES} )
+# SET(src_file rotation_pcd_to_horizon_pcl)
+# add_executable (${src_file} src/${src_file}.cpp )
+# target_link_libraries (${src_file} ${PCL_LIBRARIES} )
 
 
-SET(src_file down_filtered_pcd)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
+# SET(src_file down_filtered_pcd)
+# add_executable (${src_file} src/${src_file}.cpp )
+# target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
 
 
 # SET(src_file remove_car)
@@ -95,13 +102,13 @@ target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
 # # add_executable (${src_file} src/${src_file}.cpp )
 # # target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
 
-SET(src_file do_icp)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
+# SET(src_file do_icp)
+# add_executable (${src_file} src/${src_file}.cpp )
+# target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
 
-SET(src_file normal_pcd)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
+# SET(src_file normal_pcd)
+# add_executable (${src_file} src/${src_file}.cpp )
+# target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
 
 
 # SET(src_file do_gicp_head_tail)

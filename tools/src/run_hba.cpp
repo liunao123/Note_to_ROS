@@ -10,14 +10,14 @@ using namespace std;
 int main(int argc, char **argv) {
 
   std::string mv_file ;
-  std::string work_dir  = "/home/map/region2-6/";
+  std::string work_dir  = "/home/map/region2-65/";
 
   for(int i=1; i < 6; i++)
   {
-    mv_file = work_dir + " HBA_pose_" + std::to_string(i) + "_.txt";
+    mv_file = work_dir + "HBA_pose_" + std::to_string(i) + "_.txt";
 
-    system(" source /opt/csg/slam/navs/devel/setup.bash ");
-    system(" roslaunch  hba  hba.launch ");
+    // system(" source /opt/csg/slam/navs/devel/setup.bash ");
+    // system(" roslaunch  hba  hba.launch ");
 
     mv_file = "cp  "  + work_dir + "HBA_pose.txt  " + mv_file;
     std::cout << mv_file << std::endl;

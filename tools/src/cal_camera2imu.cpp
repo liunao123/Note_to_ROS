@@ -24,24 +24,69 @@ static Eigen::Vector3d R2ypr(const Eigen::Matrix3d &R)
   return ypr;
 }
 
+
+#define M_PI 3.14159265358979323846
+#define To_rad( x ) ( x * M_PI / 180.0)
+
 int main(int argc, char **argv)
 {
+
+  Eigen::AngleAxisd current_rotation_x(To_rad( 14.31      ) ,  Eigen::Vector3d::UnitX());
+  Eigen::AngleAxisd current_rotation_y(To_rad( -89.108 ) ,  Eigen::Vector3d::UnitY());
+  Eigen::AngleAxisd current_rotation_z(To_rad( 76.631 ) , Eigen::Vector3d::UnitZ());
+
+  
+  Eigen::Translation3d current_translation(-1, 0, 0);
+
+  // Eigen::Matrix4d trans_ = (current_translation * current_rotation_z * current_rotation_y * current_rotation_x).matrix();
+  Eigen::Matrix3d trans_ = (current_rotation_x * current_rotation_y * current_rotation_z).matrix();
+ 
+  // Eigen::Vector4d target_ori(1, -1, 0, 1);
+  // Eigen::Vector4d target_rotate = trans_ * target_ori;
+  cout << __FILE__ << ":" << __LINE__ << " T_mat  " << endl << endl
+       << trans_ << endl
+       << endl << endl ;
+   return 1;
+
+  // Eigen::Isometry3d T_mat = Eigen::Isometry3d::Identity();
+  // T_mat.rotate( (current_rotation_z * current_rotation_y * current_rotation_x).toRotationMatrix() );
+
+  // Eigen::Vector3d trans_mat;
+  // trans_mat << -1, 0, 0 ; // Horizon
+  // T_mat.pretranslate( trans_mat );
+  // cout << __FILE__ << ":" << __LINE__ << " T_mat " << endl << endl
+  //      << T_mat.matrix() << endl
+  //      << endl << endl ;
+
+  // // Eigen::Vector4d target_ori(1, -1, 0, 1);
+  // // Eigen::Vector4d target_rotate = T_mat.inverse() * target_ori;
+  // cout << __FILE__ << ":" << __LINE__ << " T_mat  inverse() " << endl << endl
+  //      << T_mat.inverse() * target_ori << endl
+  //      << endl << endl ;
+  //  return 1;
+
+
+
   // 求逆矩阵
-//   Eigen::Matrix3d rot_mat = Eigen::Matrix3d::Identity();
-//   rot_mat << -0.00207836,-0.999688,-0.0248923,
-//                  -0.0127348,0.0249168,-0.999608,
-//                  0.999917,-0.00176055,-0.0127826;
+  // Eigen::Matrix3d rot_mat = Eigen::Matrix3d::Identity();
+  // rot_mat << 0.0044434 , -0.99989100 , -0.0140727,
+  //         0.0122374 ,  0.01412610 , -0.9998250,
+  //         0.9999150 ,  0.00427041 , 0.01229890;
 
-//   Eigen::Vector3d trans_mat;
-//   trans_mat <<  -0.0407803 , 0.0531845 ,-0.051548 ; // Horizon
+  // Eigen::Vector3d trans_mat;
+  // trans_mat << 0.00617251 , -0.120378 , -0.0554433 ; // Horizon
 
-//   Eigen::Isometry3d T_mat = Eigen::Isometry3d::Identity();
-//   T_mat.prerotate( rot_mat );
-//   T_mat.translate( trans_mat );
-//   cout << __FILE__ << ":" << __LINE__ << " T_mat  inverse() " << endl << endl
-//        << T_mat.inverse().matrix() << endl
-//        << endl << endl ;
-//    return 1;
+  // Eigen::Isometry3d T_mat = Eigen::Isometry3d::Identity();
+  // T_mat.rotate( rot_mat );
+  // T_mat.pretranslate( trans_mat );
+  // cout << __FILE__ << ":" << __LINE__ << " T_mat   " << endl << endl
+  //      << T_mat .matrix() << endl
+  //      << endl << endl ;
+
+  // cout << __FILE__ << ":" << __LINE__ << " T_mat  inverse() " << endl << endl
+  //      << T_mat.inverse().matrix() << endl
+  //      << endl << endl ;
+  //  return 1;
 
 
   // T_lidar2imu
