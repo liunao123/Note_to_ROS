@@ -13,6 +13,9 @@ include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
+SET(src_file read_gicp_result)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file}  )
 
 SET(src_file read_xml)
 add_executable (${src_file} src/${src_file}.cpp )
@@ -88,9 +91,9 @@ target_link_libraries (${src_file}  )
 # target_link_libraries (${src_file} ${PCL_LIBRARIES} )
 
 
-# SET(src_file down_filtered_pcd)
-# add_executable (${src_file} src/${src_file}.cpp )
-# target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
+SET(src_file down_filtered_pcd)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
 
 
 # SET(src_file remove_car)

@@ -29,7 +29,7 @@ def plot_trajectory(poses, edges):
     
     x = [pose[0] for pose in poses]
     y = [pose[1] for pose in poses]
-    plt.plot(x, y, 'b-',  linewidth= 0.3, label='fast_livo_opt' , marker='o' ,markersize=0.5 )
+    plt.plot(x, y, 'b-',  linewidth= 0.3, label='odom_opt' , marker='o' ,markersize=0.5 )
     # plt.scatter(x[0], y[0], color='r', label='Start' , marker='>' ,linewidth=8 ) 
     # plt.scatter(x[-1], y[-1], color='g', label='End' , marker='>' ,linewidth=8 ) 
     label_ed = False
@@ -44,11 +44,11 @@ def plot_trajectory(poses, edges):
             plt.plot([v1[0], v2[0]], [v1[1], v2[1]], 'r-' ,linewidth=0.3, marker='*' ,markersize=10 )
         else:
             label_ed = True
-            plt.plot([v1[0], v2[0]], [v1[1], v2[1]], 'r-' ,linewidth=0.3, marker='*' ,markersize=10, label='fast_livo_loopclosure_opt' )
+            plt.plot([v1[0], v2[0]], [v1[1], v2[1]], 'r-' ,linewidth=0.3, marker='*' ,markersize=10, label='loopclosure_opt' )
     
     plt.xlabel('X : m')
     plt.ylabel('Y : m ')
-    plt.title('fast_livo_opt')
+    plt.title('odom_opt')
     plt.legend()
     plt.grid(True)
     plt.axis('equal')
@@ -60,7 +60,7 @@ def plot_trajectory(poses, edges):
 
 
 if __name__ == "__main__":
-    g2o_file = '/home/map/region4-3/pose_graph/graph.g2o'
+    g2o_file = '/home/map/region4-4/pose_graph/graph.g2o'
     # g2o_file = '/home/map/rgb_test_big/pose_graph/graph.g2o'
     print('g2o_file:', g2o_file )
     poses, edges = read_g2o_viewer_file(g2o_file)
