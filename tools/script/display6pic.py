@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+import sys
+reload(sys)
+sys.setdefaultencoding('utf-8')
+
 import matplotlib.pyplot as plt
 import os
-
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
+plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
 
 def display(folder_path):
     # 文件夹路径
@@ -38,17 +43,25 @@ def display(folder_path):
         # 在相应的子图上显示图像
         axs[row, col].imshow(image)
         axs[row, col].axis('off')
-        # axs[row, col].set_title(image_file)
-        axs[row, col].set_title(image_file[:2] + "-" + folder_path[-2:])
+        # print(folder_path[-2:] )
+        # axs[row, col].set_title( u"底部地图测试点 : " + image_file )
+        if(len(image_file) < 26):
+            print( image_file )
+            axs[row, col].set_title( image_file )
+        else:
+            print( image_file[-26:] )
+            axs[row, col].set_title( image_file[-26:] )
+
+        # axs[row, col].set_title(image_file[:2] + "-" + folder_path[-2:])
     
     # 调整子图之间的间距
     plt.subplots_adjust(wspace=0.05, hspace=0.1)
     
     # 获取显示器的分辨率
-    # dpi = plt.gcf().dpi
+    dpi = plt.gcf().dpi
     
     # # 保存为全分辨率的PNG格式
-    # plt.savefig("全屏图像.png", dpi=dpi)
+    # plt.savefig( "/home/" + folder_path[-2:] + ".png", dpi=dpi)
     
     # 显示图像
     plt.show()
@@ -57,7 +70,9 @@ def display(folder_path):
 
 
 # 主文件夹路径
-folder_path = "/opt/csg/slam/navs/zz_left/"
+folder_path = "/home/bag/zhengzhou_20240509/06/zz_v2_chedi_map_pic/"
+import matplotlib
+print(matplotlib.matplotlib_fname())
 
 # 遍历文件夹及其所有子文件夹
 sub_folders = []

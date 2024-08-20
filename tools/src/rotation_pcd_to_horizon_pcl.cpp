@@ -1,19 +1,19 @@
 #include <pcl/io/pcd_io.h>
-
 #include <pcl/ModelCoefficients.h>
 #include <pcl/sample_consensus/method_types.h>
 #include <pcl/sample_consensus/model_types.h>
 #include <pcl/segmentation/sac_segmentation.h>
 #include <pcl/filters/crop_box.h>
+#include <pcl/filters/extract_indices.h>
 
 #include <Eigen/Core>
 
 int main(int argc, char **argv)
 {
-  std::string cloud_file;
+  std::string pcd_file;
   if (argc > 1)
   {
-    cloud_file = argv[1];
+    pcd_file = argv[1];
   }
   else
   {
@@ -22,10 +22,10 @@ int main(int argc, char **argv)
     PCL_ERROR("ex: rotation_pcd_to_horizon_pcl /home/1.pcd \n");
     return -1;
   }
-  std::cout << "Point cloud file is \"" << cloud_file << "\"\n";
+  std::cout << "Point cloud file is \"" << pcd_file << "\"\n";
   pcl::PointCloud<pcl::PointXYZ> cloud;
 
-  pcl::io::loadPCDFile(cloud_file, cloud);
+  pcl::io::loadPCDFile(pcd_file, cloud);
   printf("size of cloud map: %ld . \n", cloud.points.size());
 
   // 创建一个模型参数对象，用于记录结果
@@ -60,39 +60,43 @@ int main(int argc, char **argv)
             << coefficients->values[2] << " "
             << coefficients->values[3] << std::endl;
 
-  float select_x = 5.72;
-  float select_y = 81.1;
+  // float select_x = 14.43;
+  // float select_y = 33.3;
 
-  float range = 1.50;
-  pcl::PointCloud<pcl::PointXYZ> cloud_in_1m;
-  static pcl::CropBox<pcl::PointXYZ> cropBoxFilter_temp(true);
-  cropBoxFilter_temp.setInputCloud(cloud.makeShared());
-  cropBoxFilter_temp.setMin(Eigen::Vector4f(select_x - range, select_y - range, -5, 1.0f));
-  cropBoxFilter_temp.setMax(Eigen::Vector4f(select_x + range, select_y + range, 3, 1.0f));
-  cropBoxFilter_temp.setNegative(false);
-  cropBoxFilter_temp.filter(cloud_in_1m);
-  std::cout << "cloud_in_1--m size: " << cloud_in_1m.points.size() << std::endl;
+  // float range = 0.50;
+  // pcl::PointCloud<pcl::PointXYZ> cloud_in_1m;
+  // static pcl::CropBox<pcl::PointXYZ> cropBoxFilter_temp(true);
+  // cropBoxFilter_temp.setInputCloud(cloud.makeShared());
+  // cropBoxFilter_temp.setMin(Eigen::Vector4f(select_x - range, select_y - range, -1.0, 1.0f));
+  // cropBoxFilter_temp.setMax(Eigen::Vector4f(select_x + range, select_y + range, 1.3, 1.0f));
+  // cropBoxFilter_temp.setNegative(false);
+  // cropBoxFilter_temp.filter(cloud_in_1m);
+  // std::cout << "cloud_in_1--m size: " << cloud_in_1m.points.size() << std::endl;
 
-  if (cloud_in_1m.points.size() > 20)
-  {
-    // 输入点云
-    seg.setInputCloud(cloud_in_1m.makeShared());
-    // 分割点云
-    seg.segment(*inliers, *coefficients);
+  // auto plan_file_temp = pcd_file;
+  // plan_file_temp.insert(plan_file_temp.size() - 4, "_use_plan");
+  // pcl::io::savePCDFileASCII(plan_file_temp, cloud_in_1m );
 
-    if (inliers->indices.size() == 0)
-    {
-      PCL_ERROR("Could not estimate a planar model for the given dataset. EXIT . ");
-      return (-1);
-    }
+  // if (cloud_in_1m.points.size() > 20)
+  // {
+  //   // 输入点云
+  //   seg.setInputCloud(cloud_in_1m.makeShared());
+  //   // 分割点云
+  //   seg.segment(*inliers, *coefficients);
 
-    std::cout << "get planar model size: " << inliers->indices.size() << std::endl;
+  //   if (inliers->indices.size() == 0)
+  //   {
+  //     PCL_ERROR("Could not estimate a planar model for the given dataset. EXIT . ");
+  //     return (-1);
+  //   }
 
-    std::cerr << "Model coefficients: " << coefficients->values[0] << " "
-              << coefficients->values[1] << " "
-              << coefficients->values[2] << " "
-              << coefficients->values[3] << std::endl;
-  }
+  //   std::cout << "get planar model size: " << inliers->indices.size() << std::endl;
+
+  //   std::cerr << "Model coefficients: " << coefficients->values[0] << " "
+  //             << coefficients->values[1] << " "
+  //             << coefficients->values[2] << " "
+  //             << coefficients->values[3] << std::endl;
+  // }
   // 参考: https://blog.csdn.net/weixin_38636815/article/details/109543753
 
   // 首先求解出旋转轴和旋转向量
@@ -122,16 +126,7 @@ int main(int argc, char **argv)
   // 计算旋转矩阵
   Eigen::AngleAxisd ro_vector(-theta, Eigen::Vector3d(axis_v1v2.x(), axis_v1v2.y(), axis_v1v2.z()));
   Eigen::Matrix3d ro_matrix = ro_vector.toRotationMatrix();
-  // std::cout << "ro_matrix eigen " << ro_matrix << std::endl;
-
-  // 计算提取出的地面点的 平均高度，后面可以统一减去这个值
-  double sum_z = 0;
-  for (int i = 0; i < inliers->indices.size(); i++)
-  {
-    sum_z += cloud.points[inliers->indices[i]].z;
-  }
-  double mean_z = sum_z / inliers->indices.size();
-  std::cout << "mean_z: " << mean_z << std::endl;
+  std::cout << "ro_matrix eigen: " << std::endl << ro_matrix << std::endl;
 
   pcl::PointCloud<pcl::PointXYZ> flat_cloud;
   flat_cloud = cloud;
@@ -146,7 +141,7 @@ int main(int argc, char **argv)
     pcl::PointXYZ pt;
     pt.x = new_point.x();
     pt.y = new_point.y();
-    pt.z = new_point.z() - mean_z ;
+    pt.z = new_point.z();
     flat_cloud.points.push_back(pt);
     int process = int(100 * double(i) / cloud.points.size());
     if (i % int(cloud.points.size() / 5) == 0)
@@ -154,9 +149,44 @@ int main(int argc, char **argv)
   }
   std::cout << "100% ... " << std::endl;
 
+
+  // 计算提取出的平面点的 平均高度，后面可以统一减去这个值
+  double mean_z = 0;
+  for (int i = 0; i < inliers->indices.size(); i++)
+  {
+    mean_z += flat_cloud.points[inliers->indices[i]].z;
+  }
+  mean_z = mean_z / inliers->indices.size();
+  std::cout << "--------------------------------- " << std::endl;
+  std::cout << "mean_z: " << mean_z << std::endl;
+  std::cout << "--------------------------------- " << std::endl;
+
+  for (int i = 0; i < flat_cloud.points.size(); i++)
+  {
+    flat_cloud.points[i].z -= mean_z;
+  }
+
+  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_p(new pcl::PointCloud<pcl::PointXYZ>);
+  // Create the filtering object
+  pcl::ExtractIndices<pcl::PointXYZ> extract;
+  // Extract the inliers
+  // 把归一化后的平面点再提取一次
+  extract.setInputCloud ( flat_cloud.makeShared() );
+  extract.setIndices (inliers);
+  extract.setNegative (false);   //如果设为true,可以提取指定index之外的点云
+  extract.filter (*cloud_p);
+  auto plan_file = pcd_file;
+  plan_file.insert(plan_file.size() - 4, "_plan");
+  pcl::io::savePCDFileASCII(plan_file, *cloud_p);
+
   std::cout << "flat_cloud size: " << flat_cloud.points.size() << std::endl;
 
-  cloud_file.insert(cloud_file.size() - 4, "_horizontal");
-  pcl::io::savePCDFileASCII(cloud_file, flat_cloud);
-  std::cout << "save result pcd :cloud_file_horizontal.pcd  >>  " << cloud_file << std::endl;
+  pcd_file.insert(pcd_file.size() - 4, "_horizontal");
+  pcl::io::savePCDFileASCII(pcd_file, flat_cloud);
+  std::cout << "save result pcd :pcd_file_horizontal.pcd  >>  " << pcd_file << std::endl;
+
+  cloud.points.clear();
+  cloud =  flat_cloud;
+  std::cout << "--------------- rotation cloud size: " << cloud.points.size() << std::endl;
+
 }

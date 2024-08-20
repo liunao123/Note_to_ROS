@@ -57,7 +57,7 @@ int main(int argc, char **argv)
 	vector<string> pcd_file;
 	scan_dir_get_filename(work_dir, pcd_file);
     
-    for (size_t cnts = 0; cnts < pcd_file.size() / 3; cnts ++ )
+    for (size_t cnts = 1; cnts <= pcd_file.size() / 3; cnts ++ )
     {
     std::string name1 = work_dir + "/_" + std::to_string(cnts) + "_scan2.pcd";
     // pcl::io::savePCDFile(name, *scan2);

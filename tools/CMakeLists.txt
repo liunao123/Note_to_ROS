@@ -30,17 +30,17 @@ target_link_libraries (${src_file}  )
 # target_link_libraries (${src_file}    ${PCL_LIBRARIES}   )
 
 
-# SET(src_file run_hba)
-# add_executable (${src_file} src/${src_file}.cpp )
-# target_link_libraries (${src_file}   )
+SET(src_file run_hba)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file}   )
 
 # SET(src_file trans_gt_world)
 # add_executable (${src_file} src/${src_file}.cpp )
 # target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
 
-# SET(src_file test)
-# add_executable (${src_file} src/${src_file}.cpp )
-# target_link_libraries (${src_file}   )
+SET(src_file test)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file}   )
 
 
 # SET(src_file get_mean_pose_from_hdl)
@@ -57,9 +57,9 @@ target_link_libraries (${src_file}  )
 # add_executable (${src_file} src/${src_file}.cpp )
 # target_link_libraries (${src_file} ${PCL_LIBRARIES}  )
 
-# SET(src_file add_pcd)
-# add_executable (${src_file} src/${src_file}.cpp )
-# target_link_libraries (${src_file} ${PCL_LIBRARIES}  )
+SET(src_file add_pcd)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file} ${PCL_LIBRARIES}  )
 
 
 # SET(src_file cal_gt_200)
@@ -76,19 +76,22 @@ target_link_libraries (${src_file}  )
 # target_link_libraries (${src_file}  )
 
 
-# SET(src_file run_hdl)
-# add_executable (${src_file} src/${src_file}.cpp )
-# target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
+SET(src_file run_hdl)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
 
 
-# SET(src_file read_pose_from_jpu)
-# add_executable (${src_file} src/${src_file}.cpp )
-# target_link_libraries (${src_file} )
+SET(src_file read_pose_from_jpu)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file} )
 
+SET(src_file read_pose_from_loc)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file} )
 
-# SET(src_file rotation_pcd_to_horizon_pcl)
-# add_executable (${src_file} src/${src_file}.cpp )
-# target_link_libraries (${src_file} ${PCL_LIBRARIES} )
+SET(src_file rotation_pcd_to_horizon_pcl)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file} ${PCL_LIBRARIES} )
 
 
 SET(src_file down_filtered_pcd)
