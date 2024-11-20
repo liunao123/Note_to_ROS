@@ -1,0 +1,1 @@
+/usr/bin/c++ -rdynamic CMakeFiles/read_xml.dir/src/read_xml.cpp.o -o read_xml

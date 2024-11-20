@@ -16,16 +16,18 @@ def image_callback(msg):
 
         # 获取图像消息的时间戳
         timestamp = msg.header.stamp.to_sec()
-
-        # 将时间戳转换为可读格式
-
-        # 构建文件名，将时间戳作为文件名的一部分
-        # filename = f"image_{timestamp_str}.png"
-        filename = "image_%s.jpg" % str(timestamp)
-
-        # 保存图像到文件
-        cv2.imwrite(filename, cv_image)
-        print("Image saved as", filename)
+        # if timestamp > 1678262970.963 and timestamp < 1678262972.963 :
+        if 1 :
+            # 将时间戳转换为可读格式
+    
+            # 构建文件名，将时间戳作为文件名的一部分
+            # filename = f"image_{timestamp_str}.png"
+            # filename = "/home/bag/NTU_data/eee_01/r2_feature/eee_01_%s.png" % str(timestamp)
+            filename = "/home/0%s.jpg" % str(timestamp)
+    
+            # 保存图像到文件
+            cv2.imwrite(filename, cv_image)
+            print("Image saved as", filename)
 
     except cv2.error as e:
         print(e)
@@ -35,7 +37,11 @@ def image_subscriber():
     rospy.init_node('image_subscriber', anonymous=True)
 
     # 创建一个订阅者，订阅名为"/image_topic"的图像topic
-    rospy.Subscriber("/camera/image_color", Image, image_callback)
+    # rospy.Subscriber("/feature_tracker/feature_img", Image, image_callback)
+    rospy.Subscriber("/cam0/image_raw", Image, image_callback)
+    # rospy.Subscriber("/camera/image_color", Image, image_callback)
+    # rospy.Subscriber("/rgb_img", Image, image_callback)
+    # rospy.Subscriber("/left/image_raw", Image, image_callback)
 
     # 循环等待消息
     rospy.spin()

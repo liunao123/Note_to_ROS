@@ -22,28 +22,26 @@ int main(int argc, char **argv)
 
   printf("-----------------------EXIT------------------\n\n\n");
 
-  // system("source /opt/csg/slam/navs/devel/setup.bash; roslaunch fast_livo_xn.launch");
+  system("source /opt/csg/slam/navs/devel/setup.bash; roslaunch mapping_v2_2nd.launch ");
 
-  // mv_file = "mv  /home/map/fast_livo_body_path.txt  /opt/csg/slam/navs/livos/fast_livo_xn.txt";
-  // system(mv_file.c_str());
+  mv_file = "mv  /home/map/fast_livo_body_path.txt  /opt/csg/slam/navs/livos/fast_livo_xn.txt";
+  system(mv_file.c_str());
   // system( " rosservice call /save_map ");
-  // sleep(100);
-
-  // mv_file = "mv  /opt/csg/slam/navs/livos/result/map_10cm.pcd  /opt/csg/slam/navs/livos/result/fast_livo_xn.pcd";
-  // system(mv_file.c_str());
+  sleep(100);
+  system(mv_file.c_str());
   // # fdjfhd
 
 
   printf("-----------------------EXIT------------------\n\n\n");
-  system(" roslaunch /opt/csg/slam/navs/livos/r3live_xn.launch ");
+  // system(" roslaunch /opt/csg/slam/navs/livos/r3live_xn.launch ");
 
-  mv_file = "mv  /home/map/r3live_body_path.txt  /opt/csg/slam/navs/livos/r3live_xn.txt";
-  system(mv_file.c_str());
-  system( " rosservice call /save_map ");
-  sleep(100);
-  mv_file = "mv  /opt/csg/slam/navs/livos/result/map_10cm.pcd  /opt/csg/slam/navs/livos/result/r3live_xn.pcd";
-  system(mv_file.c_str());
-  system( " rosnode kill /laserMapping ");
+  // mv_file = "mv  /home/map/r3live_body_path.txt  /opt/csg/slam/navs/livos/r3live_xn.txt";
+  // system(mv_file.c_str());
+  // system( " rosservice call /save_map ");
+  // sleep(100);
+  // mv_file = "mv  /opt/csg/slam/navs/livos/result/map_10cm.pcd  /opt/csg/slam/navs/livos/result/r3live_xn.pcd";
+  // system(mv_file.c_str());
+  // system( " rosnode kill /laserMapping ");
 
 
   return 0;

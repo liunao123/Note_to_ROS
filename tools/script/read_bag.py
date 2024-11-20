@@ -1,50 +1,56 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import rospy
+from rospy import Time
 import rosbag
+from sensor_msgs.msg import Image, PointCloud2
+from cv_bridge import CvBridge
+from livox_ros_driver.msg import CustomMsg
+import numpy as np
+import sensor_msgs.point_cloud2 as pc2
 
-# 输入的bag文件路径
-bag_file = "/home/direct_l_v_calibrate_data_avia/0.bag"
+def custom_msg_to_point_cloud2(custom_msg):
+    # Extract points from CustomMsg
+    points = []
+    for point in custom_msg.points:
+        x, y, z = point.x, point.y, point.z
+        intensity = point.reflectivity
+        points.append([x, y, z, intensity])
 
-# 要处理的图像topic
-topic_to_process = "/hk_camera/image_color"
+    # Convert to numpy array
+    points_array = np.array(points, dtype=np.float32)
 
-# 保留的帧数
-num_frames_to_keep = 3
-
-# 输出的处理结果
-processed_data = []
-
-# 读取输入的bag文件
-with rosbag.Bag(bag_file, 'r') as input_bag:
-    # 帧计数器
-    frame_count = 0
+    # Create PointCloud2 message
+    header = custom_msg.header
+    fields = [
+        pc2.PointField('x', 0, pc2.PointField.FLOAT32, 1),
+        pc2.PointField('y', 4, pc2.PointField.FLOAT32, 1),
+        pc2.PointField('z', 8, pc2.PointField.FLOAT32, 1),
+        pc2.PointField('intensity', 12, pc2.PointField.FLOAT32, 1),
+    ]
     
-    # 遍历所有消息
-    for topic, msg, t in input_bag.read_messages(topics=[topic_to_process]):
-        # 检查当前消息的topic是否是要处理的topic
-        if topic == topic_to_process:
-            # 增加帧计数器
-            frame_count += 1
-            
-            # 处理前 num_frames_to_keep 帧数据
-            if frame_count <= num_frames_to_keep:
-                # 在这里添加您的处理逻辑
-                # 示例：将消息的数据添加到处理结果列表中
-                processed_data.append(msg)
+    pc2_msg = pc2.create_cloud(header, fields, points_array)
+    return pc2_msg
 
-    for topic, msg, t in input_bag.read_messages():
-        # 检查当前消息的topic是否在要保留的列表中
-        if topic in topics_to_keep:
-            # 写入消息到输出的bag文件
-            output_bag.write(topic, msg, t)
+def modify_and_save_bag(input_bag_file, output_bag_file, time_offset):
+    count = 1
+    with rosbag.Bag(input_bag_file, 'r') as inbag:
+        with rosbag.Bag(output_bag_file, 'w') as outbag:
+            for topic, msg, t in inbag.read_messages():
+                new_time = rospy.Time(count, 0)
+                count = count + 1
+                print("Processing message:", count, "Topic:", topic)
 
+                # Convert Livox CustomMsg to PointCloud2
+                if "livox_ros_driver/CustomMsg" in msg._type:
+                    msg = custom_msg_to_point_cloud2(msg)
+                    # Update topic name for the converted message
+                    topic = topic + "/pointcloud2"
 
-        # 如果已经保留了 num_frames_to_keep 帧数据，则退出循环
-        if frame_count > num_frames_to_keep:
-            break
+                if hasattr(msg, 'header'):
+                    msg.header.stamp = new_time
+                
+                outbag.write(topic, msg, new_time)
 
-# 打印处理结果
-print("处理结果:")
-for data in processed_data:
-    print(data)
+# ... rest of the code remains the same ... 

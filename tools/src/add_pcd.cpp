@@ -127,7 +127,7 @@ int main(int argc, char **argv)
 	// return 0;
 
 
-	std::string work_dir = "/home/lj/";
+	std::string work_dir = "/opt/csg/slam/navs/lj_pcd/";
 	std::cout << "Your work dir is : " << work_dir << std::endl;
 
 	// 这个读取的顺序是对的
@@ -137,7 +137,8 @@ int main(int argc, char **argv)
 	pcxyz_type::Ptr one_cloud(new pcxyz_type);
 	pcxyz_type::Ptr all_cloud(new pcxyz_type);
 
-	for (int i = 0; i < pcd_file.size()  ; i ++ )
+	// for (int i = 0; i < pcd_file.size()  ; i ++ )
+	for (int i = 4000; i < 5000 ; i ++ )
 	{
 		read_pcd_file(pcd_file[i], one_cloud);
 		*all_cloud += *one_cloud;
@@ -147,7 +148,7 @@ int main(int argc, char **argv)
 
 	// filter_sth(all_cloud);
 
-    pcl::io::savePCDFileASCII("/home/map/saveMap.pcd", *all_cloud);
+    pcl::io::savePCDFileASCII("/home/add_pcd.pcd", *all_cloud);
 	    cout << "all_cloud size " << all_cloud->size() << endl;
 
 	cout << "--cnts_ ----DONE----- " << endl;

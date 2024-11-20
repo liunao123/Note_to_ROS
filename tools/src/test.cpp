@@ -3,6 +3,15 @@
 #include <string>
 
 int main() {
+    std::string test = "helloworld";
+    for (int i = 0; i < test.size() ; i++ )
+    {
+      printf(" %d ", test[i]);
+
+    }
+
+    return 1;
+
     std::string inputFilename = "/home/liunao/map.xml";
     std::string outputFilename = "/home/liunao/map1.xml";
     double subtractValue_x = -21.506353;

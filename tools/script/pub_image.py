@@ -21,6 +21,7 @@ def publish_images(folder_path, topic):
     image_files = [f for f in os.listdir(folder_path) if os.path.isfile(os.path.join(folder_path, f))]
 
     # 遍历所有图像文件
+    cnts = 1
     for file_name in image_files:
         # 读取图像文件
         image_path = os.path.join(folder_path, file_name)
@@ -29,19 +30,22 @@ def publish_images(folder_path, topic):
         if image is not None:
             # 将OpenCV图像转换为ROS图像消息
             ros_image = bridge.cv2_to_imgmsg(image, encoding="bgr8")
+            ros_image.header.stamp.secs = cnts
 
             # 发布图像消息
             image_publisher.publish(ros_image)
-            rospy.loginfo("Published image: %s", file_name)
+            rospy.loginfo("%dth Published image: %s",cnts, file_name)
+            cnts = cnts + 1
         else:
             rospy.logwarn("Failed to read image: %s", file_name)
 
         # 延时一段时间（例如0.1秒）
-        rospy.sleep(0.2)
+        rospy.sleep(0.1)
 
 if __name__ == '__main__':
-    folder_path = "/home/liunao/qt/liejian/cab_liejian/camera_in/3"  # 替换为你的图像文件夹路径
-    topic = "/image"  # 替换为你要发布的topic名称
+    # folder_path = "/opt/csg/slam/navs/calibrate_hk_camera_new_V2_20241105/png"  # 替换为你的图像文件夹路径
+    folder_path = "/home/liunao/Kalibr/v1_hk_1106"  # 替换为你的图像文件夹路径
+    topic = "/hk_camera/image_color"  # 替换为你要发布的topic名称
     try:
         publish_images(folder_path, topic)
     except rospy.ROSInterruptException:

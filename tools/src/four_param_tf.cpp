@@ -65,8 +65,8 @@ void read( string FilePath, struct Data a[8]) {
 int main()
 {
 	//分别读取两个文件作为初始数据
-	read("../src/XYZ_origin_1.xyz", KnownData);
-	read("../src/XYZ_target_1.xyz", TargetData);
+	read("../data/XYZ_origin_1.xyz", KnownData);
+	read("../data/XYZ_target_1.xyz", TargetData);
 
 	//定义矩阵，
 	Matrix<double, 8 , 4>B;
@@ -159,6 +159,6 @@ int main()
 	}
 	cout<< "下面输出由学号生成的坐标转换结果：" << endl;
 	cout<<"("<<x3(0, 0) << "," << x3(1, 0) <<")"<< endl;
-	system("pause");
+	// system("pause");
 	return 0;
 }

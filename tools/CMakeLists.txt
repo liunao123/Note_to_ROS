@@ -21,9 +21,9 @@ SET(src_file read_xml)
 add_executable (${src_file} src/${src_file}.cpp )
 target_link_libraries (${src_file}  )
 
-# SET(src_file four_param_tf)
-# add_executable (${src_file} src/${src_file}.cpp )
-# target_link_libraries (${src_file}  )
+SET(src_file four_param_tf)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file}  )
 
 # SET(src_file remove_outlier_pt)
 # add_executable (${src_file} src/${src_file}.cpp )
@@ -48,9 +48,9 @@ target_link_libraries (${src_file}   )
 # target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
 
 
-# SET(src_file cal_camera2imu)
-# add_executable (${src_file} src/${src_file}.cpp )
-# target_link_libraries (${src_file}   )
+SET(src_file cal_camera2imu)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file}   )
 
 
 # SET(src_file get_box_point_for_cab)
@@ -66,9 +66,9 @@ target_link_libraries (${src_file} ${PCL_LIBRARIES}  )
 # add_executable (${src_file} src/${src_file}.cpp )
 # target_link_libraries (${src_file} ${OpenCV_LIBS}  )
 
-# SET(src_file run_livo)
-# add_executable (${src_file} src/${src_file}.cpp )
-# target_link_libraries (${src_file} ${PCL_LIBRARIES} )
+SET(src_file run_livo)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file} ${PCL_LIBRARIES} )
 
 
 # SET(src_file run_livos)

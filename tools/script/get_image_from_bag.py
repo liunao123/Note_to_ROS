@@ -8,46 +8,46 @@
 
 import os
 import argparse
-
 import cv2
-
 import rosbag
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
+image_topic = '/hk_camera/image_color'
 
-def main():
-    """Extract a folder of images from a rosbag.
-    """
-    parser = argparse.ArgumentParser(description="Extract images from a ROS bag.")
-    parser.add_argument("bag_file", help="Input ROS bag.")
-    parser.add_argument("output_dir", help="Output directory.")
-    parser.add_argument("image_topic", help="Image topic.")
-
-    args = parser.parse_args()
-
-    print "Extract images from %s on topic %s into %s" % (args.bag_file,
-                                                          args.image_topic, args.output_dir)
-
-    bag = rosbag.Bag(args.bag_file, "r")
+def save_img_from_bag( bag_file , img_file):
+    bag = rosbag.Bag(bag_file, "r")
     bridge = CvBridge()
-    count = 0
-    for topic, msg, t in bag.read_messages(topics=[args.image_topic]):
-        cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
-
-        cv2.imwrite(os.path.join(args.output_dir, "frame%06i.png" % count), cv_img)
-        print "Wrote image %i" % count
+    count = 1
+    for topic, msg, t in bag.read_messages(topics=[ image_topic]):
+       # cv_img = bridge.imgmsg_to_cv2(msg, desired_encoding="passthrough")
+        cv_img = bridge.imgmsg_to_cv2(msg, "bgr8")
+        timestamp = msg.header.stamp.to_sec()
+        # 构建文件名，将时间戳作为文件名的一部分
+        # img_file = "/home/liunao/Kalibr/v1_hall_bag_extrisics/v1_%s.png" % str(count)
+        # img_file = file_path + "3.png"
 
         count += 1
-        if count > 2:
+        # img_file = "/home/dlvc_data/vel2camera_vanjee_hk/vanjee_hk_xr_yf/3.jpg" # % str(count-2)
+        if count > 3  and count < 5:
+        # if 1:
+        # if  timestamp > 1609059153.0 and timestamp < 1609059155.02 :
+            cv2.imwrite(img_file, cv_img)
+            print("Image saved as ", img_file , timestamp)
             break
-
     bag.close()
 
     return
 
 if __name__ == '__main__':
-    main()
-        
-   # bag_file = "/home/bag/livox_hk/cab/1.bag"  # 替换为你的bag文件路径
-   # output_folder = "/home/bag/livox_hk/cab/1"  # 替换为输出图像文件的文件夹路径
-    print("Extracted image")
+    file_path = "/opt/csg/slam/navs/v1_20241118/bag/"
+    print( file_path )
+    # bag_file = "/opt/csg/slam/navs/v1_20241118/bag/33.bag"
+    # save_img_from_bag( bag_file )
+
+    for i in range(9):
+        bag_file =  file_path + str(i) + ".bag"
+        img_file = file_path + str(i) + ".png"
+        print( bag_file )
+        save_img_from_bag(bag_file , img_file)
+
+    print("Extracted image DONE")

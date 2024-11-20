@@ -1,0 +1,20 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/liunao/qt/Note_to_ROS/tools/src/run_livo.cpp
+string
+-
+iostream
+-
+stdlib.h
+-
+unistd.h
+-
+thread
+-
+
