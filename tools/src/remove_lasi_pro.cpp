@@ -21,6 +21,8 @@
 #include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/common/time.h>
 #include <pcl/common/transforms.h>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/filters/project_inliers.h>
 
 #include <Eigen/Dense>
 
@@ -96,6 +98,25 @@ const float get_distance_to_line(const Eigen::Vector3f line, const Eigen::Vector
     // x 表示向量的叉乘。
 }
 
+
+void projectPointOntoPlane(const pcl::PointCloud<pcl::PointXYZI>&  cloud, const pcl::ModelCoefficients& planeCoefficients ) {
+    // 创建点云对象
+
+     // 创建投影滤波器
+    pcl::ProjectInliers<pcl::PointXYZI> proj;
+    proj.setModelType(pcl::SACMODEL_PLANE);
+    proj.setModelCoefficients(boost::make_shared<pcl::ModelCoefficients>(planeCoefficients));
+    proj.setInputCloud(cloud.makeShared());
+
+    // 存储投影结果
+    pcl::PointCloud<pcl::PointXYZI> projectedCloud;
+    proj.filter(projectedCloud);
+    projectedCloud.width = projectedCloud.size();
+    projectedCloud.height = 1;
+    pcl::io::savePCDFileASCII("/opt/csg/slam/navs/t.pcd", projectedCloud);
+}
+
+
 const pcl::PointCloud<pcl::PointXYZI>::Ptr get_inflation_points(const std::string pcd_file)
 {
     // 获取开始时间
@@ -110,53 +131,24 @@ const pcl::PointCloud<pcl::PointXYZI>::Ptr get_inflation_points(const std::strin
     for (size_t i = 0; i < cloud->points.size(); i++)
     {
         const auto &search_point = cloud->points[i];
-        if (search_point.intensity < 60.0 || search_point.x > 15.0 )
+        // if (search_point.intensity < 140.0 || search_point.x > 15.0 )
+        //     continue;
+        if (search_point.intensity  != 90 )
             continue;
-
+        
         // 点到直线的距离
         Eigen::Vector3f line(search_point.x, search_point.y, search_point.z);
+        Eigen::Vector3f point(search_point.x, search_point.y, search_point.z); // 示例点
 
-        int near_pts_count = 0;
-        std::vector<float> pts_x;
-        float mean_intensity = 0;
-        for (size_t j = 0; j < cloud->points.size(); j++)
-        {
-            const Eigen::Vector3f one_point(cloud->points[j].x, cloud->points[j].y, cloud->points[j].z);
-            if (cloud->points[j].intensity < 60.0 || cloud->points[j].x > 15.0 )
-                continue;
+        pcl::ModelCoefficients planeCoefficients;
+        planeCoefficients.values.resize(4);
+        planeCoefficients.values[0] = line.x(); // A
+        planeCoefficients.values[1] = line.y(); // B
+        planeCoefficients.values[2] = line.z(); // C (法向量)
+        planeCoefficients.values[3] = - (line.x()*line.x() + line.y() * line.y() + line.z()*line.z() );
 
-            const auto distance = get_distance_to_line(line, one_point);
-            if (distance < DISTANCE_THRESHOLD )
-            {
-                near_pts_count++;
-                // pts_x.emplace_back( cloud->points[j].x );
-                pts_x.emplace_back( one_point.norm() );
-                mean_intensity += cloud->points[j].intensity;
-                // cout << cloud->points[j].x  << "  ";
-            }
-        }
-
-        if ( near_pts_count > PTS_COUNT_THRESHOLD )
-        {
-            Eigen::VectorXf vx = Eigen::Map<Eigen::VectorXf, Eigen::Unaligned>(pts_x.data(), pts_x.size());
-            double mean = vx.mean();                               // 计算均值
-            double vx_variance = ( vx.array() -  mean  ).square().mean() / vx.size(); // 计算方差
-            // cout << mean_intensity / pts_x.size() << "  " << endl;
-
-            const double variance_THRESH = 0.05 ;
-            if (  vx_variance > variance_THRESH * variance_THRESH )   // x 方向的距离方差阈值
-            {
-                // if (mean_intensity / pts_x.size() > 50.0) // 平均强度
-                if ( 1 ) // 平均强度
-                {
-                    cloud_inflat->points.emplace_back(search_point);
-                }
-            }
-        }
-        else
-        {
-            cloud_normal->points.emplace_back(search_point);
-        }
+        projectPointOntoPlane( *cloud, planeCoefficients );
+        break;
     }
     cout << "inflation cloud points size : " << cloud_inflat->size() << endl;
     cout << "cloud_normal cloud points size : " << cloud_normal->size() << endl;
