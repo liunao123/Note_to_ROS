@@ -2,6 +2,12 @@
 #include <fstream>
 #include <string>
 
+#include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/common/io.h>
+#include <iostream>
+#include <fstream>
+
 int main() {
     std::string test = "helloworld";
     for (int i = 0; i < test.size() ; i++ )

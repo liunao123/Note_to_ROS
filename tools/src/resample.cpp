@@ -4,7 +4,7 @@
 #include <pcl/surface/mls.h>
 #include <pcl/filters/voxel_grid.h>
 #include <Eigen/Dense> // Include the Eigen library for matrix operations
-
+#include <map>
 using namespace std;
 
 // typedef pcl::PointCloud<PointT> PointCloudT;
@@ -13,36 +13,48 @@ using namespace std;
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud< PointT > PointCloudT;
 
-int main()
+int main(int argc, char **argv)
 {
-    // Load input file into a PointCloud<T> with an appropriate type
-    pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>());
-    // Load bun0.pcd -- should be available with the PCL archive in test
-    if (pcl::io::loadPCDFile<PointT>("/opt/csg/slam/navs/6_1cm.pcd", *cloud) == -1)
-    // if (pcl::io::loadPCDFile<PointT>("/opt/csg/slam/navs/0.pcd", *cloud) == -1)
-    // if (pcl::io::loadPCDFile<PointT>("/home/liunao/Kalibr/v1_20241118/pcd_png/0.pcd", *cloud) == -1)
+    std::string filename = "/opt/csg/slam/navs/6_shadows.pcd";
+    if (argc == 2)
     {
-        PCL_ERROR("Could not read file\n");
+      filename = argv[1];
+    }
+    else
+    {
+      std::cout << "you can specify pcd file . like: " << std::endl;
+      std::cout << " ./resample /home/1.pcd " << std::endl;
     }
 
+    std::cout << "filename: " << filename << std::endl;
+
+    // std:map<PointT, int> pt_map;
+
+    pcl::PointCloud<PointT>::Ptr cloud(new pcl::PointCloud<PointT>());
+    // if (pcl::io::loadPCDFile<PointT>(filename, *cloud) == -1)
+    // {
+    //     PCL_ERROR("Could not read file\n");
+    // }
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_i(new pcl::PointCloud<pcl::PointXYZI>());
     // Load bun0.pcd -- should be available with the PCL archive in test
-    if (pcl::io::loadPCDFile<pcl::PointXYZI>("/opt/csg/slam/navs/6_1cm.pcd", *cloud_i) == -1)
-    // if (pcl::io::loadPCDFile<PointT>("/opt/csg/slam/navs/0.pcd", *cloud) == -1)
-    // if (pcl::io::loadPCDFile<PointT>("/home/liunao/Kalibr/v1_20241118/pcd_png/0.pcd", *cloud) == -1)
+    if (pcl::io::loadPCDFile<pcl::PointXYZI>(filename, *cloud_i) == -1)
     {
         PCL_ERROR("Could not read file\n");
     }
 
-    // cloud->points.resize( cloud_i->size() );
-    // for (size_t i = 0; i <  cloud_i->size() ; i++)
-    // {
-    //     // cout << "cloud_i  : " << cloud_i->points[i].x << " " << cloud_i->points[i].y << " " << cloud_i->points[i].z   << endl;
-    //     // cout << "cloud  : " << cloud->points[i].x << " " << cloud->points[i].y << " " << cloud->points[i].z   << endl;
-    //     cloud->points[i].x =  cloud_i->points[i].x;
-    //     cloud->points[i].y =  cloud_i->points[i].y;
-    //     cloud->points[i].z =  cloud_i->points[i].z;
-    // }
+    cloud->points.resize( cloud_i->size() );
+    for (size_t i = 0; i <  cloud_i->size() ; i++)
+    {
+        cloud->points[i].x =  cloud_i->points[i].x;
+        cloud->points[i].y =  cloud_i->points[i].y;
+        cloud->points[i].z =  cloud_i->points[i].z;
+        // pt_map[ cloud->points[i] ] = cloud_i->points[i].intensity ;
+        // if ( i % 10000 == 0)
+        // {
+        // cout << "cloud  : " << cloud->points[i].x << " " << cloud->points[i].y << " " << cloud->points[i].z   << endl;
+        // cout << "cloud_i  : " << cloud_i->points[i].x << " " << cloud_i->points[i].y << " " << cloud_i->points[i].z   << endl;
+        // }
+    }
 
     cout << "cloud points size : " << cloud->size() << endl;
 
@@ -80,7 +92,7 @@ int main()
     pcl::PointCloud<pcl::PointXYZI>::Ptr  cloud_normal(new pcl::PointCloud<pcl::PointXYZI> );
     pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_inflat(new pcl::PointCloud<pcl::PointXYZI> );
 
-    // for (const auto pt : mls_points.points)
+    // todo! 索引和原始的不一样 
     for (size_t i = 0; i <  mls_points.size(); i++)
     {
         pcl::PointNormal pt = mls_points[ i ];
@@ -92,17 +104,25 @@ int main()
 
         if ( i % 10000 ==  0)
         {
-        cout << "cloud  : " << cloud_i->points[i].x << " " << cloud_i->points[i].y  << " "   << cloud_i->points[i].z <<  endl;
-        cout << "mls_points  : " << mls_points.points[i].x << " " << mls_points.points[i].y  << " "   << mls_points.points[i].z <<  endl;
+          cout << "cloud  : " << cloud_i->points[i].x << " " << cloud_i->points[i].y  << " "   << cloud_i->points[i].z <<  endl;
+          cout << "mls_points  : " << mls_points.points[i].x << " " << mls_points.points[i].y  << " "   << mls_points.points[i].z <<  endl;
         }
 
         Eigen::Vector3f this_pt_(pt.x, pt.y, pt.z);
         Eigen::Vector3f this_pt_normal(pt.normal_x, pt.normal_y, pt.normal_z);
         // auto r1 = this_pt_.transpose() * this_pt_normal;
-        auto r1 = ( this_pt_.normalized() ) .dot( this_pt_normal.normalized() );
-        r1 = std::fabs(r1);
-
-        if (r1 < 0.15) // 0.2 is good
+        auto r1 = (this_pt_.normalized()).dot(this_pt_normal.normalized());
+        // r1 = std::fabs(r1);
+        // 计算模
+        // double normV1 = this_pt_.norm();
+        // double normV2 = this_pt_normal.norm();
+        // 计算夹角（弧度）
+        double angleRad = std::acos(r1);
+        // 转换为度
+        double angleDeg = angleRad * (180.0 / M_PI);
+        // cout << "r1 : " << r1 << "  angleDeg : " << angleDeg << endl;
+        // if (r1 < 0.15) // 0.2 is good
+        if ( angleDeg > 80.0 &&  angleDeg < 100.0 ) // 0.2 is good
         {
             // cout << "neiji 1 : " << r1 << endl;
             // cout << "neiji 2 : " << r2 << endl;

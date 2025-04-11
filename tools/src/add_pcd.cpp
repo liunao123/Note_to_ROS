@@ -32,7 +32,8 @@
 using namespace std;
 using namespace Eigen;
 
-typedef pcl::PointCloud<pcl::PointXYZ> pcxyz_type;
+typedef pcl::PointXYZI pt_type;
+typedef pcl::PointCloud<pt_type> pcxyz_type;
 
 
 
@@ -75,7 +76,7 @@ void read_pcd_file(const std::string filename, pcxyz_type::Ptr cloud)
 	auto pcd = filename;
 	try
 	{
-		pcl::io::loadPCDFile<pcl::PointXYZ>(pcd, *cloud);
+		pcl::io::loadPCDFile<pt_type>(pcd, *cloud);
 	}
 	catch (const std::exception &e)
 	{
@@ -87,9 +88,9 @@ void read_pcd_file(const std::string filename, pcxyz_type::Ptr cloud)
 
 void filter_sth(pcxyz_type::Ptr & cloud_in_src)
 {
-	pcl::RadiusOutlierRemoval<pcl::PointXYZ> outrem;	
+	pcl::RadiusOutlierRemoval<pt_type> outrem;	
     // downsample clouds
-    pcl::VoxelGrid<pcl::PointXYZ> vg;
+    pcl::VoxelGrid<pt_type> vg;
 
 	// pcxyz_type::Ptr cloud_out(new pcxyz_type);
 
@@ -127,7 +128,7 @@ int main(int argc, char **argv)
 	// return 0;
 
 
-	std::string work_dir = "/opt/csg/slam/navs/lj_pcd/";
+	std::string work_dir = "/opt/csg/slam/navs/ls/";
 	std::cout << "Your work dir is : " << work_dir << std::endl;
 
 	// 这个读取的顺序是对的
@@ -137,8 +138,8 @@ int main(int argc, char **argv)
 	pcxyz_type::Ptr one_cloud(new pcxyz_type);
 	pcxyz_type::Ptr all_cloud(new pcxyz_type);
 
-	// for (int i = 0; i < pcd_file.size()  ; i ++ )
-	for (int i = 4000; i < 5000 ; i ++ )
+	for (int i = 0; i < pcd_file.size()  ; i ++ )
+	// for (int i = 4000; i < 5000 ; i ++ )
 	{
 		read_pcd_file(pcd_file[i], one_cloud);
 		*all_cloud += *one_cloud;
@@ -148,7 +149,7 @@ int main(int argc, char **argv)
 
 	// filter_sth(all_cloud);
 
-    pcl::io::savePCDFileASCII("/home/add_pcd.pcd", *all_cloud);
+    pcl::io::savePCDFileASCII("/opt/csg/slam/navs/add_pcd.pcd", *all_cloud);
 	    cout << "all_cloud size " << all_cloud->size() << endl;
 
 	cout << "--cnts_ ----DONE----- " << endl;

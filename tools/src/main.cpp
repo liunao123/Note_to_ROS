@@ -1,8 +1,18 @@
 #include "pack.h"
- 
-int main()
+int main(int argc, char **argv)
 {
-    std::string pcd_file = "/opt/csg/slam/navs/6_1cm.pcd";
+    std::string pcd_file = "/home/liunao/Kalibr/v1_20241118/temp/2ds.pcd";
+    double SearchRadius = 0.1;
+    if (argc == 3)
+    {
+        std::cout << "you should specify pcd file  . " << std::endl;
+        pcd_file = argv[1];
+        SearchRadius = std::stod(argv[2]) ;
+        // return -1;
+    }
+
+    std::cout << "pcd_file: " << pcd_file << std::endl;
+    std::cout << "SearchRadius: " << SearchRadius << std::endl;
 
     // PointCloudTPtr cloud(new PointCloudT());
     // // std::cout << "pcd_file : " << pcd_file << std::endl;
@@ -18,13 +28,16 @@ int main()
 
     // 2
     pack p(pcd_file);
-    p.setSearchRadius(0.1);
+    p.setSearchRadius( SearchRadius );
+    // p.setSearchRadius(0.15);
     p.setOrthogonalityTHRESHOLD(0.15);
     p.run();
 
     PointCloudTPtr out_cloud(new PointCloudT());
     p.getNormalCloud(out_cloud);
-    pcl::io::savePCDFile("/opt/csg/slam/navs/6-cloud_normal_.pcd", *out_cloud);
+    pcl::io::savePCDFile("/opt/csg/slam/navs/cloud_normal_.pcd", *out_cloud);
     p.getOutlierCloud(out_cloud);
-    pcl::io::savePCDFile("/opt/csg/slam/navs/6-cloud_outlier_.pcd", *out_cloud);
+    pcl::io::savePCDFile("/opt/csg/slam/navs/cloud_outlier_.pcd", *out_cloud);
+
+
 }

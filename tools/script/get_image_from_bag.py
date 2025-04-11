@@ -12,7 +12,7 @@ import cv2
 import rosbag
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
-image_topic = '/hk_camera/image_color'
+image_topic = '/dh_camera/image_color'
 
 def save_img_from_bag( bag_file , img_file):
     bag = rosbag.Bag(bag_file, "r")
@@ -39,7 +39,7 @@ def save_img_from_bag( bag_file , img_file):
     return
 
 if __name__ == '__main__':
-    file_path = "/opt/csg/slam/navs/v1_20241118/bag/"
+    file_path = "/home/liunao/Kalibr/lx100_dh/lx100_dh_rs_20241217/bag/"
     print( file_path )
     # bag_file = "/opt/csg/slam/navs/v1_20241118/bag/33.bag"
     # save_img_from_bag( bag_file )

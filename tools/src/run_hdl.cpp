@@ -53,16 +53,16 @@ int main(int argc, char **argv)
   std::signal(SIGINT, handle_signal);
   sleep( 3 );
 
-  while ( num++ < 3 )
+  while ( num++ < 5 )
   {
-    std::string mv_file = "mv /home/map/hdl_pose.txt  /home/map/hdl_pose_zhengzhou_" + std::to_string( num )  + ".txt ";
+    std::string mv_file = "mv /home/map/hdl_pose.txt  /home/map/hdl_pose_nc_sjt_back_" + std::to_string( num )  + ".txt ";
 
-    // system("source /opt/csg/LX100/navs/devel/setup.bash; roslaunch hdl_localization hdl_localization.launch");
-    system("source /home/liunao/csg/SH100/slam/navs/devel/setup.bash; roslaunch hdl_localization hdl_localization.launch");
+    auto r1 = system("source /opt/csg/slam/navs/LX100/devel/setup.bash; roslaunch hdl_localization hdl_localization.launch");
+    // system("source /home/liunao/csg/SH100/slam/navs/devel/setup.bash; roslaunch hdl_localization hdl_localization.launch");
 
     std::cout << mv_file << std::endl;
 
-    system(mv_file.c_str());
+    auto r2 = system(mv_file.c_str());
 
     // mv_file = "mv /home/map/fast_livo_body_path.txt  /home/map/test/changzhou_fast_livo_odom_" + std::to_string( num )  + ".txt ";
     // system(mv_file.c_str());

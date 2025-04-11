@@ -3,9 +3,64 @@
 #include <fstream>
 #include <Eigen/Core>
 #include <Eigen/Geometry>
+#include <experimental/filesystem>
+
+#include <vector>
+#include <iostream>
+#include <iomanip>
+
+#include <Eigen/Core>
+#include <Eigen/Geometry>
+
+#include <string>
+#include <algorithm>
+
+#include <stdlib.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <dirent.h>
+
 
 using namespace std;
 using namespace Eigen;
+
+template<typename T>
+Eigen::Matrix<T, 3, 1> RotMtoEuler(const Eigen::Matrix<T, 3, 3> &rot)
+{
+    T sy = sqrt(rot(0,0)*rot(0,0) + rot(1,0)*rot(1,0));
+    bool singular = sy < 1e-6;
+    T x, y, z;
+    if(!singular)
+    {
+        x = atan2(rot(2, 1), rot(2, 2));
+        y = atan2(-rot(2, 0), sy);   
+        z = atan2(rot(1, 0), rot(0, 0));  
+     //   std::cout << "x  : " << rot(2, 1) / rot(2, 2) << std::endl;
+     //   std::cout << "y  : " << -rot(2, 0) / sy << std::endl;
+     //   std::cout << "z  : " << rot(1, 0) / rot(0, 0) << std::endl;
+    }
+    else
+    {    
+        x = atan2(-rot(1, 2), rot(1, 1));    
+        y = atan2(-rot(2, 0), sy);    
+        z = 0;
+    }
+    
+    x = x * 180.0 / M_PI;
+    y = y * 180.0 / M_PI;
+    z = z * 180.0 / M_PI;
+
+    // Normalize roll to be within [-180, 180]
+    if (x > 180.0) x -= 360.0;
+    if (x < -180.0) x += 360.0;
+    // Limit yaw to be near 0
+    if (z > 90.0) z -= 180.0;
+    if (z < -90.0) z += 180.0;
+
+    Eigen::Matrix<T, 3, 1> ang(z, y, x);
+    return ang;
+}
+
 
 static Eigen::Vector3d R2ypr(const Eigen::Matrix3d &R)
 {
@@ -21,7 +76,7 @@ static Eigen::Vector3d R2ypr(const Eigen::Matrix3d &R)
      ypr(1) = p;
      ypr(2) = r;
 
-     return ypr;
+     return ypr * 180.0 / M_PI ;
 }
 
 #define M_PI 3.14159265358979323846
@@ -91,6 +146,98 @@ void From_Quaterniond()
      std::cout << "Relative Pose q_ab<Martix>: " << q_ab.matrix() << std::endl;
 }
 
+
+const std::vector<string> scan_dir_get_filename( const std::string &path )
+{
+     std::vector<string> filenames;
+	struct dirent **entry_list;
+	int count;
+	int i;
+
+	count = scandir(path.c_str(), &entry_list, 0, alphasort);
+	if (count < 0)
+	{
+		perror("scandir");
+	}
+
+	for (i = 0; i < count; i++)
+	{
+		struct dirent *entry;
+		entry = entry_list[i];
+		// 跳过 ./ 和 ../ 两个目录
+		if (i < 2)
+		{
+			continue;
+		}
+		filenames.push_back(path + std::string(entry->d_name));
+		// printf("%s\n", entry->d_name);
+		printf(" %s \n",  filenames.back().c_str()  );
+		free(entry);
+	}
+	free(entry_list);
+	cout << "size of pcd : " << filenames.size() << endl;
+     return filenames;
+}
+
+void read_8_extrinsics2euler( const std::string extrinsics_file )
+{
+     // extrinsics_file = "/opt/csg/slam/navs/src/HBA/rviz_cfg/camera_v1_avia_hk_20241118.yaml";
+    std::ifstream file(extrinsics_file);
+    if (!file.is_open()) {
+        std::cerr << "Failed to open the file." << std::endl;
+        return ;
+    }
+
+    Eigen::Matrix3d matrix;
+    Eigen::Vector3d trans;
+
+    std::string line;
+    while (std::getline(file, line))
+    {
+     //     if (line.find("#") != std::string::npos)
+         if (line.find("T_camera_lidar") != std::string::npos)
+         {
+              // Skip this line and the next three lines
+              for (int i = 0; i < 3; ++i)
+              {
+                   std::getline(file, line);
+                   // Read the matrix values
+                   std::stringstream ss(line);
+                   double value;
+                   for (int j = 0; j < 3; ++j)
+                   {
+                        ss >> value;
+                        matrix(i, j) = value;
+                   }
+                   ss >> trans(i);
+              }
+              // Output the matrix
+          //     std::cout << "Matrix read from file:" << std::endl;
+          //     std::cout << matrix << std::endl << std::endl;
+
+              Eigen::Quaterniond quaternion(matrix);
+              quaternion.normalize();
+              matrix = quaternion.toRotationMatrix();
+
+          //     std::cout << matrix << std::endl << std::endl;
+
+              Eigen::Vector3d eu_ypr = RotMtoEuler(matrix) ;
+              std::cout << "eulerAngle<RotMtoEuler>: " << eu_ypr.transpose() << std::endl;
+
+          //     eu_ypr = R2ypr(matrix) ;
+ 
+              std::cout << extrinsics_file << "  " ;
+              std::cout << trans.transpose() << "  " ;
+              std::cout << matrix.eulerAngles(0, 1, 2).transpose() * 180.0 / M_PI << std::endl;
+          //     std::cout << matrix.eulerAngles(2, 1, 0).transpose() * 180.0 / M_PI << std::endl;
+
+         }
+    }
+
+    file.close();
+
+}
+
 int main(int argc, char **argv)
 {
      // From_Martix();
@@ -98,24 +245,44 @@ int main(int argc, char **argv)
 
      // From_Quaterniond();
      // return 1;
+     
+     // read_8_extrinsics2euler();
+
+     std::string extrinsics_file = "/opt/csg/slam/navs/TF70/";
+    if (argc == 2) {
+        std::cerr << "Usage: " << argv[0] << " <extrinsics_file_path>" << std::endl;
+        extrinsics_file = argv[1];
+    }
+
+     std::cout << "extrinsics_file: " << extrinsics_file  << std::endl << std::endl;
+
+     auto fiels_this_dir = scan_dir_get_filename(extrinsics_file);
+
+     for ( const auto item : fiels_this_dir )
+     {
+         read_8_extrinsics2euler( item );
+     }
+     
+     return 1;
 
 
      Eigen::Matrix3d R_cl = Eigen::Matrix3d::Identity();
-//      R_cl <<   0.00414227,   -0.999876,    -0.01519 ,
-// -0.00606582,   0.0151647,   -0.999867 ,
-//    0.999973 , 0.00423386 ,-0.00600226 ;
+     R_cl <<  0.9995320,  0.0001047,  0.0305908,
+  -0.0004363,  0.9999412,  0.0108332,
+  -0.0305879, -0.0108415,  0.9994733 ;
 
-        R_cl <<   0.00,   -1.0,  -0.0 ,
-                  0.00,   0.0,   -1.0 ,
-                  1.00 ,  0.00 , 0.00 ;
+     //    R_cl <<   0.00,   -1.0,  -0.0 ,
+     //              0.00,   0.0,   -1.0 ,
+     //              1.00 ,  0.00 , 0.00 ;
 
-     std::cout << "R_cl: " << R_cl  << std::endl<< std::endl;
+     std::cout << "R_cl: " << R_cl  << std::endl << std::endl;
 
-     Eigen::Vector3d eu_ypr = R2ypr(R_cl) * 180.0 / M_PI;
-     std::cout << "eulerAngle: " << eu_ypr  << std::endl;
+     Eigen::Vector3d eu_ypr = RotMtoEuler(R_cl) ;
+     std::cout << "eulerAngle<R2ypr>: " << eu_ypr.transpose()  << std::endl;
 
-     std::cout << "eulerAngles: " << R_cl.eulerAngles(2, 1, 0)  << std::endl<< std::endl;
-     
+     //   camera 坐标系 先绕 x 转90  绕y 转0   ，绕z转90
+     std::cout << "eulerAngles<eigen012>: " << R_cl.eulerAngles(0, 1, 2).transpose() * 180.0 / M_PI  << std::endl<< std::endl;
+     std::cout << "eulerAngles<eigen210>: " << R_cl.eulerAngles(2, 1, 0).transpose() * 180.0 / M_PI  << std::endl<< std::endl;
 
      return 1;
 

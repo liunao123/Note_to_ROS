@@ -38,10 +38,10 @@ def image_subscriber():
 
     # 创建一个订阅者，订阅名为"/image_topic"的图像topic
     # rospy.Subscriber("/feature_tracker/feature_img", Image, image_callback)
-    rospy.Subscriber("/cam0/image_raw", Image, image_callback)
+    # rospy.Subscriber("/cam0/image_raw", Image, image_callback)
     # rospy.Subscriber("/camera/image_color", Image, image_callback)
     # rospy.Subscriber("/rgb_img", Image, image_callback)
-    # rospy.Subscriber("/left/image_raw", Image, image_callback)
+    rospy.Subscriber("/left_camera/image", Image, image_callback)
 
     # 循环等待消息
     rospy.spin()

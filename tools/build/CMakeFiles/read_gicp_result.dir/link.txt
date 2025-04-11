@@ -1,1 +1,0 @@
-/usr/bin/c++ -rdynamic CMakeFiles/read_gicp_result.dir/src/read_gicp_result.cpp.o -o read_gicp_result
