@@ -25,6 +25,12 @@ add_definitions(${PCL_DEFINITIONS})
 add_executable (cluster src/cluster.cpp )
 target_link_libraries (cluster   ${PCL_LIBRARIES} )
 
+add_executable (octree src/octree.cpp )
+target_link_libraries (octree   ${PCL_LIBRARIES} )
+
+
+add_executable (down_filtered_pcd_big src/down_filtered_pcd_big.cpp )
+target_link_libraries (down_filtered_pcd_big   ${PCL_LIBRARIES} )
 
 # add_executable (mls src/mls.cpp )
 # target_link_libraries (mls   ${PCL_LIBRARIES} )

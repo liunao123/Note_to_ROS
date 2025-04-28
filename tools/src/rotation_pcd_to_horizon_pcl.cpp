@@ -23,7 +23,7 @@ int main(int argc, char **argv)
     return -1;
   }
   std::cout << "Point cloud file is \"" << pcd_file << "\"\n";
-  pcl::PointCloud<pcl::PointXYZ> cloud;
+  pcl::PointCloud<pcl::PointXYZI> cloud;
 
   pcl::io::loadPCDFile(pcd_file, cloud);
   printf("size of cloud map: %ld . \n", cloud.points.size());
@@ -33,7 +33,7 @@ int main(int argc, char **argv)
   // inliers表示误差能容忍的点 记录的是点云的序号
   pcl::PointIndices::Ptr inliers(new pcl::PointIndices);
   // 创建一个分割器
-  pcl::SACSegmentation<pcl::PointXYZ> seg;
+  pcl::SACSegmentation<pcl::PointXYZI> seg;
   // Optional，这个设置可以选定结果平面展示的点是分割掉的点还是分割剩下的点。
   seg.setOptimizeCoefficients(true);
   // Mandatory-设置目标几何形状
@@ -64,8 +64,8 @@ int main(int argc, char **argv)
   // float select_y = 33.3;
 
   // float range = 0.50;
-  // pcl::PointCloud<pcl::PointXYZ> cloud_in_1m;
-  // static pcl::CropBox<pcl::PointXYZ> cropBoxFilter_temp(true);
+  // pcl::PointCloud<pcl::PointXYZI> cloud_in_1m;
+  // static pcl::CropBox<pcl::PointXYZI> cropBoxFilter_temp(true);
   // cropBoxFilter_temp.setInputCloud(cloud.makeShared());
   // cropBoxFilter_temp.setMin(Eigen::Vector4f(select_x - range, select_y - range, -1.0, 1.0f));
   // cropBoxFilter_temp.setMax(Eigen::Vector4f(select_x + range, select_y + range, 1.3, 1.0f));
@@ -128,7 +128,7 @@ int main(int argc, char **argv)
   Eigen::Matrix3d ro_matrix = ro_vector.toRotationMatrix();
   std::cout << "ro_matrix eigen: " << std::endl << ro_matrix << std::endl;
 
-  pcl::PointCloud<pcl::PointXYZ> flat_cloud;
+  pcl::PointCloud<pcl::PointXYZI> flat_cloud;
   flat_cloud = cloud;
   flat_cloud.points.clear();
 
@@ -138,10 +138,11 @@ int main(int argc, char **argv)
   {
     Eigen::Vector3d newP(cloud.points[i].x, cloud.points[i].y, cloud.points[i].z);
     Eigen::Vector3d new_point = ro_matrix * newP;
-    pcl::PointXYZ pt;
+    pcl::PointXYZI pt;
     pt.x = new_point.x();
     pt.y = new_point.y();
     pt.z = new_point.z();
+    pt.intensity = cloud.points[i].intensity;
     flat_cloud.points.push_back(pt);
     int process = int(100 * double(i) / cloud.points.size());
     if (i % int(cloud.points.size() / 5) == 0)
@@ -166,9 +167,9 @@ int main(int argc, char **argv)
     flat_cloud.points[i].z -= mean_z;
   }
 
-  pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_p(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_p(new pcl::PointCloud<pcl::PointXYZI>);
   // Create the filtering object
-  pcl::ExtractIndices<pcl::PointXYZ> extract;
+  pcl::ExtractIndices<pcl::PointXYZI> extract;
   // Extract the inliers
   // 把归一化后的平面点再提取一次
   extract.setInputCloud ( flat_cloud.makeShared() );
