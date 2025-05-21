@@ -29,6 +29,15 @@ add_executable (octree src/octree.cpp )
 target_link_libraries (octree   ${PCL_LIBRARIES} )
 
 
+add_executable(test_opencv src/test_opencv.cpp)
+target_link_libraries(test_opencv  ${PCL_LIBRARIES}  ${OpenCV_LIBRARIES}  )
+
+add_executable(test_fisheye src/test_fisheye.cpp)
+target_link_libraries(test_fisheye   ${PCL_LIBRARIES}  ${OpenCV_LIBRARIES}  )
+
+add_executable (remove_outlier_pt src/remove_outlier_pt.cpp )
+target_link_libraries (remove_outlier_pt   ${PCL_LIBRARIES} )
+
 add_executable (down_filtered_pcd_big src/down_filtered_pcd_big.cpp )
 target_link_libraries (down_filtered_pcd_big   ${PCL_LIBRARIES} )
 
