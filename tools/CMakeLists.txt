@@ -22,8 +22,6 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 
-add_executable (cluster src/cluster.cpp )
-target_link_libraries (cluster   ${PCL_LIBRARIES} )
 
 add_executable (octree src/octree.cpp )
 target_link_libraries (octree   ${PCL_LIBRARIES} )
@@ -38,8 +36,9 @@ target_link_libraries(test_fisheye   ${PCL_LIBRARIES}  ${OpenCV_LIBRARIES}  )
 add_executable (remove_outlier_pt src/remove_outlier_pt.cpp )
 target_link_libraries (remove_outlier_pt   ${PCL_LIBRARIES} )
 
-add_executable (down_filtered_pcd_big src/down_filtered_pcd_big.cpp )
-target_link_libraries (down_filtered_pcd_big   ${PCL_LIBRARIES} )
+SET(src_file down_filtered_pcd)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
 
 # add_executable (mls src/mls.cpp )
 # target_link_libraries (mls   ${PCL_LIBRARIES} )
@@ -74,33 +73,20 @@ add_executable (${src_file} src/${src_file}.cpp )
 target_link_libraries (${src_file}   ${PCL_LIBRARIES} )
 
 
-SET(src_file resample)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}   ${PCL_LIBRARIES} )
-
 SET(src_file compute_normal)
 add_executable (${src_file} src/${src_file}.cpp )
 target_link_libraries (${src_file}   ${PCL_LIBRARIES} )
 
-SET(src_file remove_lasi_pro)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}   ${PCL_LIBRARIES} )
 
 SET(src_file down_filtered_ply)
 add_executable (${src_file} src/${src_file}.cpp )
 target_link_libraries (${src_file}   ${PCL_LIBRARIES} )
 
-SET(src_file test)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}   ${PCL_LIBRARIES} )
 
 SET(src_file bin_pcd)
 add_executable (${src_file} src/${src_file}.cpp )
 target_link_libraries (${src_file}   ${PCL_LIBRARIES} )
-
-SET(src_file remove_lasi)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}    ${PCL_LIBRARIES}   )
+ 
 
 SET(src_file read_gicp_result)
 add_executable (${src_file} src/${src_file}.cpp )
@@ -138,10 +124,6 @@ target_link_libraries (${src_file}   )
 # add_executable (${src_file} src/${src_file}.cpp )
 # target_link_libraries (${src_file} ${PCL_LIBRARIES}  )
 
-SET(src_file add_pcd)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file} ${PCL_LIBRARIES}  )
-
 
 # SET(src_file cal_gt_200)
 # add_executable (${src_file} src/${src_file}.cpp )
@@ -173,11 +155,6 @@ target_link_libraries (${src_file} )
 SET(src_file rotation_pcd_to_horizon_pcl)
 add_executable (${src_file} src/${src_file}.cpp )
 target_link_libraries (${src_file} ${PCL_LIBRARIES} )
-
-
-SET(src_file down_filtered_pcd)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}  ${PCL_LIBRARIES} )
 
 
 # SET(src_file remove_car)

@@ -22,32 +22,10 @@
  
 #include <sys/stat.h>
  
-// #include <pcl/io/boost.h>
-// #include <boost/program_options.hpp>
 
 
 typedef pcl::PointXYZI pt;
-
-void list_dir(std::string path_input, std::string path_output)
-{
-    std::string datapath_in = "/home/"; 
-    std::string datapath_out = path_output;
-    
-    std::vector<boost::filesystem::path> paths(boost::filesystem::directory_iterator{datapath_in}, boost::filesystem::directory_iterator{});
  
-    sort(paths.begin(), paths.end());
- 
-    auto pcd_iter = paths.begin();
- 
-    int frames_all = paths.end() - paths.begin();
- 
-    for (int i = 0; i < frames_all; i++) {
-        pcd_iter++;
-        std::string in_file = pcd_iter->string();
-        std::cerr << "in_file: " << in_file << std::endl;
-    }
-
-}
 
 void bin2pcd(const std::string &in_file, const std::string& out_file)
 {
@@ -118,8 +96,6 @@ int main()
     std::string binfile = "/opt/csg/slam/navs/scene_03400_0.bin";
     std::string pcdfile = "/opt/csg/slam/navs/scene_03400_0_mask.pcd";
     bin2pcd(binfile, pcdfile);
-
-    // list_dir()
 
     // pcd2bin(pcdfile, binfile);
 

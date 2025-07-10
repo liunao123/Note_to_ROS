@@ -55,7 +55,8 @@ int main(int argc, char **argv)
 	while (!viewer.wasStopped())
 	{
 		viewer.spinOnce(100);
-		boost::this_thread::sleep(boost::posix_time::microseconds(100000));
+		sleep(100);//每100ms刷新一次
+		// boost::this_thread::sleep(boost::posix_time::microseconds(100000));
 	}
 	return 0;
 }
