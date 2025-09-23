@@ -82,6 +82,9 @@ SET(src_file down_filtered_ply)
 add_executable (${src_file} src/${src_file}.cpp )
 target_link_libraries (${src_file}   ${PCL_LIBRARIES} )
 
+SET(src_file trans_pts)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file}   ${PCL_LIBRARIES} )
 
 SET(src_file bin_pcd)
 add_executable (${src_file} src/${src_file}.cpp )

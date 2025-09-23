@@ -1,11 +1,11 @@
 #!/bin/bash
 
 # 记录文件所在目录
-RECORD_DIR="apollo_record"
+RECORD_DIR="/mnt/nvme0n1p2/data/0915/1/"
 # 输出rosbag目录
 OUTPUT_DIR="./rosbags"
 # 合并后的bag文件名
-MERGED_BAG="merged.bag"
+MERGED_BAG="/mnt/nvme0n1p2/data/0915/1//x1_6_0915_m.bag"
 
 mkdir -p "$OUTPUT_DIR"
 
