@@ -51,7 +51,7 @@ void scan_dir_get_filename(string path, vector<string> &filenames)
 
 int main(int argc, char **argv)
 {
-	std::string work_dir = "/home/map/icp";
+	std::string work_dir = "/home/tyjt/Desktop/ros_ws/test";
 	std::cout << "Your work dir is : " << work_dir << std::endl;
 	// 这个读取的顺序是对的
 	vector<string> pcd_file;
@@ -59,10 +59,10 @@ int main(int argc, char **argv)
 
 	for (size_t cnts = 1; cnts <= pcd_file.size() / 3; cnts++)
 	{
-		std::string name1 = work_dir + "/_" + std::to_string(cnts) + "_scan2.pcd";
+		std::string name1 = work_dir + "/" + std::to_string(cnts) + "_tgt.pcd";
 		// pcl::io::savePCDFile(name, *scan2);
 		// std::cout << "Your work dir is : " << name1 << std::endl;
-		std::string name2 = work_dir + "/_" + std::to_string(cnts) + "_unused_result.pcd";
+		std::string name2 = work_dir + "/" + std::to_string(cnts) + "_aligned_src.pcd";
 		auto cmd = "pcl_viewer " + name1 + " " + name2;
 		std::cout << "cmd is : " << cmd << std::endl
 				  << std::endl;

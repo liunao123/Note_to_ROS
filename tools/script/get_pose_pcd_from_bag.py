@@ -32,24 +32,23 @@ def convert_pointcloud2_to_pcl(pc2_msg):
     """
     将PointCloud2消息转换为PCL点云对象
     """
-    # 提取点云数据
+    import sensor_msgs.point_cloud2 as pc2
+    
+    # 使用sensor_msgs.point_cloud2来正确解析点云数据
     points = []
-    for i in range(0 , pc2_msg.width * pc2_msg.height , 1 ):
-        # 计算每个点的字节偏移量
-        point_offset = i * pc2_msg.point_step
+    
+    # 获取字段信息
+    field_names = [field.name for field in pc2_msg.fields]
+    print(f"Available fields: {field_names}")  # 调试信息
+    
+    # 使用pc2.read_points来正确读取点云数据
+    for point in pc2.read_points(pc2_msg, field_names=["x", "y", "z", "intensity"], skip_nans=True):
+        x, y, z, intensity = point
         
-        # 提取xyz坐标（假设前12个字节是xyz）
-        x = np.frombuffer(pc2_msg.data[point_offset:point_offset+4], dtype=np.float32)[0]
-        y = np.frombuffer(pc2_msg.data[point_offset+4:point_offset+8], dtype=np.float32)[0]
-        z = np.frombuffer(pc2_msg.data[point_offset+8:point_offset+12], dtype=np.float32)[0]
-        
-        # 提取强度值（可能需要根据实际字段偏移量调整）
-        intensity_offset = 16  # 通常强度值在16字节偏移处
-        intensity = np.frombuffer(pc2_msg.data[point_offset+intensity_offset:point_offset+intensity_offset+4], dtype=np.float32)[0]
-
+        # 过滤车辆附近的点
         if abs(x) < 2.5 and abs(y) < 2.5:
-            continue;
-        
+            continue
+            
         # 过滤无效点
         if not (np.isnan(x) or np.isnan(y) or np.isnan(z) or
                 np.isinf(x) or np.isinf(y) or np.isinf(z)):
@@ -91,8 +90,8 @@ def merge_bags(args):
     count_pose = 0
     count_lidar = 0
     first_pose = np.eye(4)
-    # output_dir = '/mnt/nvme0n1p2/data/0909_pcd/'
-    output_dir =  args.output
+    output_dir = '/mnt/nvme0n1p2/data/0923/pcd/'
+    # output_dir =  args.output
     
     # shutil.rmtree(output_dir) #将整个文件夹删除
     os.makedirs(output_dir, exist_ok=True)
@@ -102,10 +101,11 @@ def merge_bags(args):
     start = time.perf_counter()
     for i in range(len(files)):
         show_process_bar(len(files), i+1, start)
-        with open(output_dir + 'pose.txt', 'w', encoding='utf-8') as f1,\
-             open(output_dir + 'pcd_timestamp.txt', 'w', encoding='utf-8') as f2:
+        with open(output_dir + '/gnss_imu_pose.txt', 'w', encoding='utf-8') as f1,\
+             open(output_dir + '/pcd_timestamp.txt', 'w', encoding='utf-8') as f2:
             with Bag(files[i], "r") as ib:
                 for topic, msg, t in ib:
+
                     if topic == "/chcnav/devpvt" :
                         # if  msg.stat[1] != 4:
                         #     unvaild_pose_time = msg.header.stamp.to_sec()
@@ -121,14 +121,13 @@ def merge_bags(args):
                         x, y = proj_utm(msg.longitude, msg.latitude)
                         # 欧拉角转四元数
                         # ok
-                        # quat = tf.transformations.quaternion_from_euler(0, 0, -1.0 * ( msg.heading2 -90.0  ) *  math.pi  / 180.0 )
+                        quat = tf.transformations.quaternion_from_euler(msg.roll *  math.pi  / 180.0, msg.pitch *  math.pi  / 180.0,  msg.yaw *  math.pi  / 180.0  )                      # 构造PoseStamped消息
+                        f1.write("{:.3f} {:.4f} {:.4f} {:.4f} {:.6f} {:.6f} {:.6f} {:.6f}\n".format( msg.header.stamp.to_sec(),  x,  y, msg.altitude, quat[0], quat[1], quat[2], quat[3]))
 
-                        quat = tf.transformations.quaternion_from_euler(msg.roll *  math.pi  / 180.0, msg.pitch *  math.pi  / 180.0,  ( -1.0 * msg.yaw ) *  math.pi  / 180.0  )                      # 构造PoseStamped消息
-                        # quat = tf.transformations.quaternion_from_euler(msg.roll * math.pi / 180.0, msg.pitch *  math.pi  / 180.0, -1.0 * ( msg.heading2 - 90.0  ) *  math.pi  / 180.0  )                      # 构造PoseStamped消息
                         count_pose += 1
-                        f1.write("{:d} {:.3f} {:.4f} {:.4f} {:.4f} {:.6f} {:.6f} {:.6f} {:.6f}\n".format(count_pose, msg.header.stamp.to_sec(),  x,  y, msg.altitude, quat[0], quat[1], quat[2], quat[3]))
-                        # f1.write("{:.3f} {:.4f} {:.4f} {:.4f} {:.6f} {:.6f} {:.6f} {:.6f}\n".format( msg.header.stamp.to_sec(),  x,  y, msg.altitude, quat[0], quat[1], quat[2], quat[3]))
-                        # continue
+                        # f1.write("{:d} {:.3f} {:.4f} {:.4f} {:.4f} {:.6f} {:.6f} {:.6f} {:.6f}\n".format(count_pose, msg.header.stamp.to_sec(),  x,  y, msg.altitude, quat[0], quat[1], quat[2], quat[3]))
+                    
+                    continue
 
                     if topic == "/rslidar_points":
                         timestamp = msg.header.stamp.to_nsec()
@@ -140,7 +139,8 @@ def merge_bags(args):
                         # continue
                         cloud = convert_pointcloud2_to_pcl(msg)
                         # 生成文件名
-                        filename = os.path.join(output_dir +  f"{count_lidar}.pcd")
+                        timestamp_str = "{:.3f}".format(msg.header.stamp.to_sec())
+                        filename = os.path.join(output_dir, f"{timestamp_str}.pcd")
                         print(f"Saving point cloud to {filename}")
                         # 保存为PCD文件
                         pcl.save(cloud, filename, binary=False)  # binary=False 保存为ASCII格式

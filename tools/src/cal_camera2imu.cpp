@@ -13,7 +13,7 @@
 #include <Eigen/Geometry>
 
 #include <string>
-#include <algorithm>
+#include <algorithm> 
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -54,8 +54,8 @@ Eigen::Matrix<T, 3, 1> RotMtoEuler(const Eigen::Matrix<T, 3, 3> &rot)
     if (x > 180.0) x -= 360.0;
     if (x < -180.0) x += 360.0;
     // Limit yaw to be near 0
-    if (z > 90.0) z -= 180.0;
-    if (z < -90.0) z += 180.0;
+//     if (z > 90.0) z -= 180.0;
+//     if (z < -90.0) z += 180.0;
 
     Eigen::Matrix<T, 3, 1> ang(z, y, x);
     return ang;
@@ -238,10 +238,187 @@ void read_8_extrinsics2euler( const std::string extrinsics_file )
 
 }
 
+void LoadPoses(const std::string& file_path,
+                  std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>>* poses,
+                  std::vector<double>* timestamps,
+                  std::vector<unsigned int>* pcd_indices) {
+  poses->clear();
+  timestamps->clear();
+  pcd_indices->clear();
+
+  FILE* file = fopen(file_path.c_str(), "r");
+  if (file) {
+    unsigned int index;
+    double timestamp;
+    double x, y, z;
+    double qx, qy, qz, qr;
+    static constexpr int kSize = 8;
+//     while (fscanf(file, "%u %lf %lf %lf %lf %lf %lf %lf %lf\n", &index,
+//                   &timestamp, &x, &y, &z, &qx, &qy, &qz, &qr) == kSize) {
+
+    while (fscanf(file, "%lf %lf %lf %lf %lf %lf %lf %lf\n",  
+                  &timestamp, &x, &y, &z, &qx, &qy, &qz, &qr) == kSize) {
+
+      Eigen::Translation3d trans(Eigen::Vector3d(x, y, z));
+      Eigen::Quaterniond quat(qr, qx, qy, qz);
+      poses->push_back(trans * quat);
+      timestamps->push_back(timestamp);
+     //  pcd_indices->push_back(index);
+    }
+    fclose(file);
+  } else {
+    std::cout << "Can't open file to read: " << file_path << std::endl;
+  }
+}
+ 
+
 int main(int argc, char **argv)
 {
-     // From_Martix();
+     Eigen::Quaterniond q1(0  , 0.7071068, 0.7071068, 0  );
+     std::cout << "q1: " << q1.coeffs()  << std::endl << std::endl;
+     std::cout << "q1: " << q1.inverse().coeffs()  << std::endl << std::endl;
+     std::cout << "q1: " << q1.inverse().w()  << std::endl << std::endl;
+     return 1;
+
+     // rosrun tf static_transform_publisher  0.0 1.12  0.250  -0.7071068 -0.7071068  0  0 Vehicle  imu  100
+     Eigen::Affine3d T_vi = Eigen::Affine3d::Identity();
+     T_vi.translation() = Eigen::Vector3d(0.0 ,1.12, 0.250); // 1.12, 0, 0.54
+     T_vi.rotate( Eigen::Quaterniond  ( 0 , -0.7071068, -0.7071068, 0 ) );
+     std::cout << "T_vi: " << T_vi.matrix()  << std::endl << std::endl;
+
+     // Eigen::Affine3d T_il = Eigen::Affine3d::Identity();
+     // // T_il.translation() = Eigen::Vector3d(0.0696721, 1.31345 ,0.942279);
+     // T_il.translation() = Eigen::Vector3d(0.0696721 , 1.31345 - 0.44 ,0.942279 - 0.6 );
+     // Eigen::Quaterniond q( 0.015358, 0.00497872, 0.00177204, 0.999868 );
+     // T_il.rotate(q);
+     // std::cout << "T_il: " << T_il.matrix()  << std::endl << std::endl;
+
+
+     // Eigen::Affine3d T_ig = Eigen::Affine3d::Identity();
+     // T_ig.translation() = Eigen::Vector3d(-0.5, 0.44 ,0.6);
+     // Eigen::Quaterniond q1( 1.0, 0.0, 0.0, 0.0 );
+     // T_ig.rotate(q1);
+     // std::cout << "T_ig: " << T_ig.matrix()  << std::endl << std::endl;
+     
+     // auto T_vl = (T_vi.inverse() * T_il);
+     // std::cout << "T_vl.linear(): " << T_vl.linear()  << std::endl << std::endl;
+     // Eigen::Quaterniond quat(T_vl.linear());
+
+     // std::cout << "----: " << T_vl.matrix()  << std::endl << std::endl;
+     // std::cout << "----: " << quat.coeffs()  << std::endl << std::endl;
+     //     std::cout << "Quaternion (w, x, y, z): " 
+     //          << quat.w() << ", " 
+     //          << quat.x() << ", " 
+     //          << quat.y() << ", " 
+     //          << quat.z() << std::endl;
+
      // return 1;
+     std::string file_path = "/mnt/nvme0n1p2/master_poses.txt";
+     std::cout << "file_path: " << file_path << std::endl;
+
+     std::vector<Eigen::Affine3d, Eigen::aligned_allocator<Eigen::Affine3d>> pcd_poses;
+     std::vector<double> timestamps;
+     std::vector<unsigned int> pcd_indices;
+     LoadPoses( file_path, &pcd_poses, &timestamps, &pcd_indices);
+     std::cout << "pcd_poses size: " << pcd_poses.size() << std::endl;
+     for (size_t i = 0; i < pcd_poses.size(); i++)
+     {
+          // const Eigen::Affine3d T_wl = pcd_poses[i] * T_vi * T_il;
+          // const Eigen::Affine3d T_wl = pcd_poses[i] * T_ig.inverse() * T_il;
+
+
+          // const Eigen::Affine3d T_wc = pcd_poses[i] * T_vi.inverse();
+          // Eigen::Quaterniond cur_quat  = (Eigen::Quaterniond)T_wc.linear();
+
+          // T_wc.translation().x() = pcd_poses[i].translation().y();
+          // T_wc.translation().y() = pcd_poses[i].translation().x();
+          // T_wc.translation().z() = -pcd_poses[i].translation().z();
+
+          // std::cout 
+          // //   << i << " "
+          //   << std::fixed << std::setprecision(3)
+          //   << timestamps[i]   << " "
+          //   << T_wc.translation().x()  << " "
+          //   << T_wc.translation().y()  << " "
+          //   << T_wc.translation().z()  << " "
+          //   << std::setprecision(6)
+          //   << cur_quat.x()  << " "
+          //   << cur_quat.y()  << " "
+          //   << cur_quat.z()  << " "
+          //   << cur_quat.w() << std::endl;
+
+          // NED到ENU的坐标转换
+          const Eigen::Affine3d& ned_pose = pcd_poses[i];
+          
+          // 创建ENU坐标系下的pose
+          Eigen::Affine3d enu_pose = Eigen::Affine3d::Identity();
+          
+          // 位置转换: ENU(x,y,z) = (NED_y, NED_x, -NED_z)
+          enu_pose.translation().x() = ned_pose.translation().x();  // ENU_x = NED_y
+          enu_pose.translation().y() = ned_pose.translation().y();  // ENU_y = NED_x
+          enu_pose.translation().z() = ned_pose.translation().z(); // ENU_z = -NED_z
+          
+          // 姿态转换: NED到ENU的旋转矩阵
+          Eigen::Matrix3d R_ned_to_enu;
+          R_ned_to_enu << 0, 1, 0,
+                          1, 0, 0,
+                          0, 0, -1;
+          
+          // 计算转换前的欧拉角（NED）
+          Eigen::Matrix3d ned_rotation = ned_pose.linear();
+          Eigen::Vector3d euler_ned = RotMtoEuler(ned_rotation);
+          
+          // 应用坐标系转换到旋转部分
+          enu_pose.linear() = R_ned_to_enu * ned_pose.linear()  ;
+          
+          // 计算转换后的欧拉角（ENU）
+          Eigen::Matrix3d enu_rotation = enu_pose.linear();
+          Eigen::Vector3d euler_enu = RotMtoEuler(enu_rotation);
+          // Eigen::Vector3d euler_enu_maunal ( - euler_ned.x(), euler_ned.y(), euler_ned.z());
+          Eigen::Vector3d euler_enu_maunal (  euler_ned.x(), - euler_ned.y(), - euler_ned.z());
+          
+          // 将欧拉角(度)转换为四元数 - ZYX顺序 (yaw, pitch, roll)
+          double yaw_rad = euler_enu.x() * M_PI / 180.0;
+          double pitch_rad = euler_enu.y() * M_PI / 180.0;
+          double roll_rad = euler_enu.z() * M_PI / 180.0;
+          
+          // ZYX欧拉角转四元数
+          Eigen::AngleAxisd yaw_angle(yaw_rad, Eigen::Vector3d::UnitZ());
+          Eigen::AngleAxisd pitch_angle(pitch_rad, Eigen::Vector3d::UnitY());
+          Eigen::AngleAxisd roll_angle(roll_rad, Eigen::Vector3d::UnitX());
+          
+          Eigen::Quaterniond cur_quat = yaw_angle * pitch_angle * roll_angle;
+          
+          // 打印欧拉角变化（每10个点打印一次避免输出过多）
+          if (i % 10 == 0) {
+              std::cout << "Frame " << i << ":" << std::endl;
+              std::cout << "  NED Euler (YPR): " << euler_ned.transpose() << " deg" << std::endl;
+              std::cout << "  ENU Euler (YPR): " << euler_enu.transpose() << " deg" << std::endl;
+              std::cout << "  ENU Euler (YPR): " << euler_enu_maunal.transpose() << " deg" << std::endl;
+              std::cout << "  Difference: " << (euler_enu - euler_ned).transpose() << " deg" << std::endl;
+          }
+          
+          // 提取四元数
+          // Eigen::Quaterniond cur_quat(enu_pose.linear());
+          cur_quat.normalize();
+
+          // 输出TUM格式: timestamp x y z qx qy qz qw
+          std::cout 
+            << std::fixed << std::setprecision(6)
+            << timestamps[i]   << " "
+            << enu_pose.translation().x()  << " "
+            << enu_pose.translation().y()  << " "
+            << enu_pose.translation().z()  << " "
+            << cur_quat.x()  << " "
+            << cur_quat.y()  << " "
+            << cur_quat.z()  << " "
+            << cur_quat.w() << std::endl;
+
+
+     }
+
+     // From_Martix();
+     return 1;
 
      // From_Quaterniond();
      // return 1;

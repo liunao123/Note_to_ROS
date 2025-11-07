@@ -19,6 +19,7 @@ def modify_and_save_bag(input_bag_file, output_bag_file, time_offset):
                 new_time = rospy.Time(count, 0)
                 count = count + 1
                 print("timestamp:", timestamp)
+                print(msg)
 
                 if count > 50:
                     break
@@ -34,8 +35,8 @@ if __name__ == '__main__':
     # ... existing code ...
     
     # 定义输入和输出bag文件路径
-    input_bag_file = "/home/bag/nj_xh/xh_vanjee_hk_20250102/v2_vanjee_hk_1.bag"
-    output_bag_file = "/home/v2_hk_1106_omm.bag"
+    input_bag_file = "/mnt/nvme0n1p2/data/park0813/2025-08-13-16-19-41_0.bag"
+    output_bag_file = "~/Desktop/Note_to_ROS/tools/2.bag"
     
     # 设置时间偏移量（秒）
     time_offset = 3600  # 例如：向后偏移1小时

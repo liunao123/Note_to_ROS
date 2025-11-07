@@ -54,8 +54,8 @@ def merge_bags(args):
             show_process_bar(len(files), i+1, start)
             with Bag(files[i], "r") as ib:
                 for topic, msg, t in ib:
-                    if 'imu' in topic:
-                        o.write(topic, msg, t)
+                    # if 'imu' in topic:
+                    o.write(topic, msg, t)
             show_process_bar(len(files), i+1, start)
     print("end merge bags.")
     
