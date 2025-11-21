@@ -4,6 +4,96 @@
 #include <pcl/common/transforms.h>
 #include <pcl/common/common.h>
 #include <vector>
+#include <iostream>
+#include <fstream>
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <filesystem>
+#include <yaml-cpp/yaml.h>
+#include <Eigen/Dense>
+#include <chrono>
+
+// 遍历文件夹中的所有PCD文件
+std::vector<std::string> getPcdFiles(const std::string& folder_path) {
+    std::vector<std::string> pcd_files;
+    try {
+        // 检查文件夹是否存在
+        if (!std::filesystem::exists(folder_path)) {
+            std::cerr << "Error: Directory does not exist: " << folder_path << std::endl;
+            return pcd_files;
+        }
+        if (!std::filesystem::is_directory(folder_path)) {
+            std::cerr << "Error: Path is not a directory: " << folder_path << std::endl;
+            return pcd_files;
+        }
+        // 遍历目录
+        for (const auto& entry : std::filesystem::directory_iterator(folder_path)) {
+            if (entry.is_regular_file()) {
+                std::string file_path = entry.path().string();
+                std::string file_extension = entry.path().extension().string();
+                
+                // 检查是否为PCD文件（不区分大小写）
+                std::transform(file_extension.begin(), file_extension.end(), 
+                             file_extension.begin(), ::tolower);
+                
+                if (file_extension == ".pcd") {
+                    pcd_files.push_back(file_path);
+                }
+            }
+        }
+        // 按文件名排序
+        std::sort(pcd_files.begin(), pcd_files.end());
+        std::cout << "Found " << pcd_files.size() << " PCD files in: " << folder_path << std::endl;
+    } catch (const std::filesystem::filesystem_error& ex) {
+        std::cerr << "Filesystem error: " << ex.what() << std::endl;
+    }
+    return pcd_files;
+}
+
+struct PoseData {
+    double timestamp;
+    Eigen::Affine3d transformation_matrix;
+    Eigen::Vector3d offset_utm;
+};
+Eigen::Vector3d first_pose_at_utm;
+
+// 从YAML文件读取位姿数据
+PoseData readPoseFromYaml(const std::string& yaml_file) {
+    PoseData pose_data;
+    pose_data.transformation_matrix = Eigen::Affine3d::Identity();
+    try {
+        YAML::Node config = YAML::LoadFile(yaml_file);
+        // 读取时间戳 - 使用高精度
+        pose_data.timestamp = config["timestamp"].as<long double>();
+        // 读取变换矩阵 (4x4) - 使用高精度
+        auto pose_utm = config["pose_utm"];
+        Eigen::Matrix4d matrix = Eigen::Matrix4d::Identity();
+        for (int i = 0; i < 16; ++i) {
+            int row = i / 4;
+            int col = i % 4;
+            // 使用long double确保精度，然后转换为double
+            long double value = pose_utm[i].as<long double>();
+            matrix(row, col) = static_cast<double>(value);
+            // std::cout << std::fixed << std::setprecision(15) << "pose_utm[" << i << "]: " << value << std::endl;
+        }
+        // 将Matrix4d转换为Affine3d
+        pose_data.transformation_matrix = Eigen::Affine3d(matrix);
+        // 读取偏移量 - 使用高精度
+        auto offset_utm = config["offset_utm"];
+        long double offset_x = offset_utm[0].as<long double>();
+        long double offset_y = offset_utm[1].as<long double>();
+        long double offset_z = offset_utm[2].as<long double>();
+        pose_data.offset_utm(0) = static_cast<double>(offset_x);
+        pose_data.offset_utm(1) = static_cast<double>(offset_y);
+        pose_data.offset_utm(2) = static_cast<double>(offset_z);
+        first_pose_at_utm = pose_data.offset_utm;
+    } catch (const std::exception& e) {
+        std::cerr << "Error reading YAML file " << yaml_file << ": " << e.what() << std::endl;
+        throw;
+    }
+    return pose_data;
+}
 
 int main(int argc, char** argv) 
 {
@@ -21,6 +111,9 @@ int main(int argc, char** argv)
         grid_y_num = std::stoi(argv[3]);
     }
 
+    auto result = readPoseFromYaml(filename + "offset.yaml");
+    std::cout << "first_pose_at_utm: " << first_pose_at_utm.transpose() << std::endl << std::endl;
+
     // 提取最后一个/之前的所有字符（即目录路径）
     std::string dir_path = "";
     size_t last_slash = filename.find_last_of('/');
@@ -35,36 +128,60 @@ int main(int argc, char** argv)
     // mc cp /mnt/nvme0n1p2/data/0930/build/hesai_0930/ minio-rsu/tyjt-rsu/qcsl_map/map   --recursive
 
     Eigen::Affine3d T_wl = Eigen::Affine3d::Identity();
-    // offset_utm
+    Eigen::Vector3d project_original_utm( 662276.0 , 4873428.0, 200.0 );
 
-    Eigen::Vector3d offset_utm(274534.52320612938 , 3479025.2756054322 , 13.507352803009168  - ( 0 ) );
-
-    Eigen::Vector3d suzhou_original_utm( 275000.0223369 , 3479281.54229995, 0.0 );
-
-    T_wl.translation() =  offset_utm - suzhou_original_utm;
+    T_wl.translation() =  first_pose_at_utm - project_original_utm;
 
     Eigen::Quaterniond q1( 1.0, 0.0, 0.0, 0.0  );
     T_wl.rotate(q1);
     std::cout << "T_wl: " << T_wl.matrix()  << std::endl << std::endl;
 
-    pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_o(new pcl::PointCloud<pcl::PointXYZI>);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr global_map(new pcl::PointCloud<pcl::PointXYZI>);
 
-    if (pcl::io::loadPCDFile<pcl::PointXYZI>(filename, *cloud_o) == -1) {
-        PCL_ERROR("Couldn't read file\n");
-        return -1;
+    // 示例：遍历目录中的所有PCD文件
+    if (!dir_path.empty())
+    {
+        std::vector<std::string> pcd_files = getPcdFiles(dir_path);
+        std::cout << pcd_files.size() << " PCD files found:" << std::endl;
+        // for (const auto &file : pcd_files)
+        for (size_t i = 0; i < pcd_files.size(); i=i+1)
+        {
+            const auto &file = pcd_files[i];
+            std::cout << "load pcd:  " << file << std::endl;
+            pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_o(new pcl::PointCloud<pcl::PointXYZI>);
+            // 获取文件大小信息
+            auto file_size = std::filesystem::file_size(file);
+            std::cout << "File size: " << file_size / (1024 * 1024) << " MB" << std::endl;
+            
+            // 尝试加载PCD文件，使用file变量而不是filename
+            std::cout << "Loading compressed PCD file..." << std::endl;
+            auto start_time = std::chrono::high_resolution_clock::now();
+            
+                if (pcl::io::loadPCDFile<pcl::PointXYZI>(file, *cloud_o) == -1)
+                {
+                    std::cerr << "Error: Couldn't read file: " << file << std::endl;
+                    continue;  // 跳过这个文件，继续处理下一个
+                }
+            
+            auto end_time = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end_time - start_time);
+            std::cout << "Loading completed in " << duration.count() << " ms" << std::endl;
+            std::cout << "cloud_o->size(): " << cloud_o->size() << std::endl;
+
+            // 对点云进行变换
+            pcl::PointCloud<pcl::PointXYZI>::Ptr transformedCloud(new pcl::PointCloud<pcl::PointXYZI>);
+            pcl::transformPointCloud(*cloud_o, *transformedCloud, T_wl);
+            *global_map += *transformedCloud;
+            std::cout << "global_map->size(): " << global_map->size() << std::endl;
+        }
     }
-    std::cout << "cloud_o->size(): " << cloud_o->size() << std::endl;
-
-    // 对点云进行变换
-    pcl::PointCloud<pcl::PointXYZI>::Ptr transformedCloud(new pcl::PointCloud<pcl::PointXYZI>);
-    pcl::transformPointCloud(*cloud_o, *transformedCloud, T_wl);
     
-    std::string output_filename = dir_path + "/1011_suzhou_x1_6.pcd";
-    pcl::io::savePCDFileBinary(output_filename, *transformedCloud);
-    std::cout << "transformedCloud->size(): " << transformedCloud->size() << std::endl;
+    std::string output_filename = dir_path + "/utm.pcd";
+    pcl::io::savePCDFileBinary(output_filename, *global_map);
+    std::cout << "global_map->size(): " << global_map->size() << std::endl;
     std::cout << "output_filename: " << output_filename << std::endl;
 
-    // return -1;
+    return -1;
 
     if (grid_y_num  * grid_x_num == 1 )
     {
@@ -73,7 +190,7 @@ int main(int argc, char** argv)
 
     // 计算边界框
     pcl::PointXYZI minPt, maxPt;
-    pcl::getMinMax3D(*transformedCloud, minPt, maxPt);
+    pcl::getMinMax3D(*global_map, minPt, maxPt);
     
     float x_range = maxPt.x - minPt.x;
     float y_range = maxPt.y - minPt.y;
@@ -91,7 +208,7 @@ int main(int argc, char** argv)
     }
 
     // 将点分配到网格
-    for (const auto& point : transformedCloud->points) {
+    for (const auto& point : global_map->points) {
         int grid_x_idx = std::min(grid_x_num - 1, (int)((point.x - minPt.x) / grid_x_size));
         int grid_y_idx = std::min(grid_y_num - 1, (int)((point.y - minPt.y) / grid_y_size));
         int grid_idx = grid_y_idx * grid_x_num + grid_x_idx;

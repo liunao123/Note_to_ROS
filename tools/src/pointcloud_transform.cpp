@@ -11,16 +11,19 @@
 #include <pcl/common/transforms.h>
 #include <Eigen/Dense>
 
+#include <pcl/common/common.h>
+#include <algorithm>
+
 namespace fs = std::filesystem;
+
+Eigen::Vector3d first_pose;
+
 
 struct PoseData {
     double timestamp;
     Eigen::Affine3d transformation_matrix;
     Eigen::Vector3d offset_utm;
 };
-
-Eigen::Vector3d first_pose;
-
 
 // 从YAML文件读取位姿数据
 PoseData readPoseFromYaml(const std::string& yaml_file) {
@@ -114,9 +117,10 @@ int main(int argc, char** argv) {
     int cut = 0;
     for (const auto& pcd_file : pcd_files) {
         // if (cut++ % 10 != 0 )
-        // {
-        //     continue;
-        // }
+        if (cut++ > 3 )
+        {
+            continue;
+        }
         try {
             // 提取时间戳
             std::string timestamp_str = extractTimestamp(pcd_file);
@@ -199,14 +203,24 @@ int main(int argc, char** argv) {
     }
     
     std::cout << "all map_cloud " << map_cloud->size()   << std::endl;
+    std::cout << "first_pose " << std::fixed << std::setprecision(6) << first_pose.transpose() << std::endl;
 
-    // Eigen::Affine3d offset_transform = Eigen::Affine3d::Identity();
-    // offset_transform.translation() = first_pose;
-    // std::cerr << "offset_transform matrix:" << std::endl << offset_transform.matrix() << std::endl;
-    // pcl::transformPointCloud(*map_cloud, *map_cloud, offset_transform);
+    // 为了保证精度，手动遍历每个点进行高精度变换，而不是使用Affine3d
+    // 因为大数值的UTM坐标在变换时容易丢失精度
+    std::cout << "Applying high-precision translation offset..." << std::endl;
+    
+    // 平移分量太大，在cc里面查看 是不正常的
+    for (auto& point : map_cloud->points) {
+        // 使用double精度进行减法运算，避免精度丢失
+        point.x = static_cast<float>(static_cast<double>(point.x) + first_pose(0));
+        point.y = static_cast<float>(static_cast<double>(point.y) + first_pose(1) );
+        point.z = static_cast<float>(static_cast<double>(point.z) + first_pose(2));
+    }
+    
+    std::cout << "Translation completed. Points transformed to local coordinate system." << std::endl;
 
     // 保存变换后的点云
-    std::string output_file = "/home/tyjt/Desktop/Note_to_ROS/tools/build/global_map.pcd";
+    std::string output_file = "/mnt/nvme0n1p2/data/2.pcd";
     if (pcl::io::savePCDFileBinary(output_file, *map_cloud) == -1)
     {
         std::cerr << "Could not save PCD file: " << output_file << std::endl;

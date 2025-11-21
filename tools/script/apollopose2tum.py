@@ -162,7 +162,7 @@ def process_apollo_records(input_directory, output_file):
 if __name__ == "__main__":
 
     # Example usage:
-    input_data_directory = "/home/tyjt/Desktop/drivewise_v101/data/W7/W7_n/"   
-    output_results_directory = "/home/tyjt/Desktop/drivewise_v101/data/W7/W7_poses_n.txt"  # Replace with your desired output directory
+    input_data_directory = "/mnt/nvme0n1p2/project/W2_pose/bag/"   
+    output_results_directory = "/mnt/nvme0n1p2/project/W2_pose/bag/W7_poses_n.txt"  # Replace with your desired output directory
     process_apollo_records(input_data_directory, output_results_directory)
 

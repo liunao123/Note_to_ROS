@@ -11,16 +11,61 @@ message(STATUS "PCL version: ${PCL_VERSION}")
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Ceres REQUIRED)
-
+find_package(Boost REQUIRED COMPONENTS program_options)
+find_package(yaml-cpp REQUIRED)
 include_directories(   ${EIGEN3_INCLUDE_DIR}  )
 
 include_directories( ${PCL_INCLUDE_DIRS}  ${OpenCV_INCLUDE_DIRS} )
-
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
 
 include_directories(${PCL_INCLUDE_DIRS})
 link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
+
+SET(src_file box_filter)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file}   ${PCL_LIBRARIES} )
+
+# 添加可执行文件
+add_executable(poses_interpolator
+    src/poses_interpolator.cc
+    src/poses_interpolation_standalone.cc
+)
+
+# 链接库
+target_link_libraries(poses_interpolator
+    ${Boost_LIBRARIES}
+    ${EIGEN3_LIBRARIES}
+    yaml-cpp
+)
+
+
+# Create executable
+add_executable(pointcloud_transform src/pointcloud_transform.cpp)
+
+# Link libraries
+target_link_libraries(pointcloud_transform ${PCL_LIBRARIES})
+target_link_libraries(pointcloud_transform ${YAML_CPP_LIBRARIES})
+target_link_libraries(pointcloud_transform Eigen3::Eigen)
+
+# Create traverse_folders executable
+add_executable(traverse_folders src/traverse_folders.cpp)
+target_link_libraries(traverse_folders
+    ${PCL_LIBRARIES}
+    ${YAML_CPP_LIBRARIES}
+    Eigen3::Eigen
+)
+
+# No additional libraries needed, just standard C++17 filesystem
+
+# Set compile flags
+target_compile_options(pointcloud_transform PRIVATE ${YAML_CPP_CFLAGS_OTHER})
+
+SET(src_file trans_pts)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file}   ${PCL_LIBRARIES} ${YAML_CPP_LIBRARIES} Eigen3::Eigen)
+target_compile_options(${src_file}  PRIVATE ${YAML_CPP_CFLAGS_OTHER})
 
 
 add_executable (octree src/octree.cpp )
@@ -82,9 +127,8 @@ SET(src_file down_filtered_ply)
 add_executable (${src_file} src/${src_file}.cpp )
 target_link_libraries (${src_file}   ${PCL_LIBRARIES} )
 
-SET(src_file trans_pts)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}   ${PCL_LIBRARIES} )
+
+
 
 SET(src_file bin_pcd)
 add_executable (${src_file} src/${src_file}.cpp )

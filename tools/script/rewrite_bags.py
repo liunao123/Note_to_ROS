@@ -27,8 +27,8 @@ if __name__ == '__main__':
     # source ~/Desktop/ros_ws/devel/setup.bash
     # 使用前请source chcnav ros环境
 
-    input_dir = "/media/tyjt/Elements1/nongan/1027/1/"
-    merged_bag_file = "/media/tyjt/Elements/nongan_rewrite_bag/1027_1.bag"
+    input_dir = "/media/tyjt/Elements1/nongan/1028/1/"
+    merged_bag_file = "/media/tyjt/Elements/nongan_rewrite_bag/1028_1.bag"
     print("\ninput_dir %s " % (input_dir))
     print("merged_bag_file %s \n\n" % (merged_bag_file))
 
@@ -78,11 +78,11 @@ if __name__ == '__main__':
                     if topic == '/imu/data_raw':
                         imu_msg = Imu()
                         imu_msg.header = msg.header
-                        imu_msg.angular_velocity.x = msg.angular_velocity.y * math.pi / 180.0
-                        imu_msg.angular_velocity.y = -1.0 * msg.angular_velocity.x * math.pi / 180.0
-                        imu_msg.angular_velocity.z = 1.0 * msg.angular_velocity.z * math.pi / 180.0
-                        imu_msg.linear_acceleration.x = msg.linear_acceleration.y
-                        imu_msg.linear_acceleration.y = -1.0 *  msg.linear_acceleration.x
-                        imu_msg.linear_acceleration.z = msg.linear_acceleration.z
-                        outbag.write("/imu", imu_msg, t)
+                        imu_msg.angular_velocity.x = msg.angular_velocity.y * (  2.88991928100586 /  3.0517578125) * math.pi / 180.0 
+                        imu_msg.angular_velocity.y = -1.0 * msg.angular_velocity.x * (  2.88991928100586/  3.0517578125 ) * math.pi / 180.0
+                        imu_msg.angular_velocity.z = 1.0 * msg.angular_velocity.z * (  2.88991928100586 /  3.0517578125 ) * math.pi / 180.0
+                        imu_msg.linear_acceleration.x = msg.linear_acceleration.y * ( 4.67617511749267 / 3.74094009399414)
+                        imu_msg.linear_acceleration.y = -1.0 *  msg.linear_acceleration.x * ( 4.67617511749267 / 3.74094009399414 )
+                        imu_msg.linear_acceleration.z = msg.linear_acceleration.z * ( 4.67617511749267 / 3.74094009399414 )
+                        outbag.write("/gnss_imu", imu_msg, t)
     print("All bags merged and saved as:", merged_bag_file)
