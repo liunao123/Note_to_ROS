@@ -23,6 +23,22 @@ link_directories(${PCL_LIBRARY_DIRS})
 add_definitions(${PCL_DEFINITIONS})
 
 
+find_package(libLAS REQUIRED)
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(PROJ REQUIRED proj)
+
+
+add_executable(select_point_with_range src/select_point_with_range.cpp)
+target_include_directories(select_point_with_range PRIVATE ${PROJ_INCLUDE_DIRS})
+target_link_libraries(select_point_with_range
+    ${PCL_LIBRARIES}
+    ${YAML_CPP_LIBRARIES}
+    ${libLAS_LIBRARIES}
+    ${PROJ_LIBRARIES}
+    Eigen3::Eigen
+)
+
+
 SET(src_file box_filter)
 add_executable (${src_file} src/${src_file}.cpp )
 target_link_libraries (${src_file}   ${PCL_LIBRARIES} )
@@ -49,13 +65,7 @@ target_link_libraries(pointcloud_transform ${PCL_LIBRARIES})
 target_link_libraries(pointcloud_transform ${YAML_CPP_LIBRARIES})
 target_link_libraries(pointcloud_transform Eigen3::Eigen)
 
-# Create traverse_folders executable
-add_executable(traverse_folders src/traverse_folders.cpp)
-target_link_libraries(traverse_folders
-    ${PCL_LIBRARIES}
-    ${YAML_CPP_LIBRARIES}
-    Eigen3::Eigen
-)
+
 
 # No additional libraries needed, just standard C++17 filesystem
 

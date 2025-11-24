@@ -1,0 +1,6 @@
+root_folder: "/media/tyjt/Elements/nongan_rewrite_bag/test_sql/"
+output_las: "/media/tyjt/Elements/nongan_rewrite_bag/test_sql/bx_test.las"
+select_point_lat: 43.98979710
+select_point_lon: 125.01927166
+search_range: 100.0
+voxel: 0.1
