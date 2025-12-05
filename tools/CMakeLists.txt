@@ -58,19 +58,23 @@ target_link_libraries(poses_interpolator
 
 
 # Create executable
-add_executable(pointcloud_transform src/pointcloud_transform.cpp)
+add_executable(get_session_data src/get_session_data.cpp)
 
 # Link libraries
-target_link_libraries(pointcloud_transform ${PCL_LIBRARIES})
-target_link_libraries(pointcloud_transform ${YAML_CPP_LIBRARIES})
-target_link_libraries(pointcloud_transform Eigen3::Eigen)
+target_link_libraries(get_session_data ${PCL_LIBRARIES}
+    ${Boost_LIBRARIES}
+    ${EIGEN3_LIBRARIES}
+    yaml-cpp
+    ${libLAS_LIBRARIES}
+    ${PROJ_LIBRARIES}
 
+)
 
 
 # No additional libraries needed, just standard C++17 filesystem
 
 # Set compile flags
-target_compile_options(pointcloud_transform PRIVATE ${YAML_CPP_CFLAGS_OTHER})
+# target_compile_options(pointcloud_transform PRIVATE ${YAML_CPP_CFLAGS_OTHER})
 
 SET(src_file trans_pts)
 add_executable (${src_file} src/${src_file}.cpp )
