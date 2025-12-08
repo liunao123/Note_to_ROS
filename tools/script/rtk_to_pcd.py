@@ -73,13 +73,12 @@ def read_rtk_points_and_convert(input_file, output_file ):
                     continue
 
                 try:
-                    # 解析纬度和经度
+                    # 解析纬度、经度、高度（数据组织为：纬度 经度 高度）
                     parts = line.split()
-                    if len(parts) >= 2:
-                        num = float(parts[0])
-                        lat = float(parts[1])
-                        lon = float(parts[2])
-                        alt = float(parts[3])  # 使用参考高度
+                    if len(parts) >= 3:
+                        lat = float(parts[0])  # 纬度
+                        lon = float(parts[1])  # 经度
+                        alt = float(parts[2])  # 高度
                         print(f" LLA : ({lat:.9f}, {lon:.9f}, {alt:.3f})")
 
                         # 转换为UTM坐标
@@ -125,7 +124,7 @@ def read_rtk_points_and_convert(input_file, output_file ):
 
 def main():
     # 文件路径
-    input_file = "/home/tyjt/Desktop/Note_to_ROS/tools/rtk_points.txt"
+    input_file = "/mnt/nvme0n1p2/data/qcsl.rtk"
     output_file = "/home/tyjt/Desktop/Note_to_ROS/tools/rtk_points_nongan.pcd"
 
     # 参考点坐标 (你可以根据需要修改)
