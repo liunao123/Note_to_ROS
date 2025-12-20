@@ -1,0 +1,114 @@
+# PostGIS 数据管理系统配置文件
+# 所有 Python 脚本共享此配置
+
+# 数据库配置 通用部分 (所有脚本)
+# ===================================================================
+database:
+  name: gtxc_db
+  user: jmsroot
+  # 使用 Unix socket 连接时，不需要设置以下参数
+  # 如需使用 TCP 连接，请取消注释并设置：
+  # host: localhost  
+  # port: 5432       
+  # password: ""
+
+
+# ===================================================================
+# 数据导入配置 (01_data_importer.py)  
+# ===================================================================
+
+# !! 空文件夹也会导入，待fix
+data_import:
+  data_root: /data/dwm_data/
+  project_name: 苏州高铁新城
+  project_description: 苏州高铁新城移动测绘项目
+  # batch_size: 1000  # 批量插入大小
+  
+  # 数据源路径配置（用于 source_data_path）
+  source_data:
+    default_root: jmsroot@192.168.2.78:/data/dwm_raw_data
+    use_session_subdir: false  # 是否在 default_root 下添加 session_name 子目录
+
+# ===================================================================
+# 位姿搜索与复制配置 (03_get_roi_data.py)
+# ===================================================================
+search_params:
+  # 默认搜索位置（苏州高铁新城某个点）
+  default_location:
+    latitude: 31.42297688
+    longitude: 120.63139038
+  distance: 300.0  # 默认搜索半径（米）
+  # UTM区号会根据经度自动计算，无需手动配置
+  limit: null      # 结果数量限制，null 表示不限制
+
+data_export:
+  root_dir: /data/postgresql/export/
+  session_name_template: "search_{lat:.6f}_{lon:.6f}_{distance}m"  # 会话名称模板
+
+  maintain_structure: true   # 保持原始目录结构
+  copy_images: true          # 是否复制图像
+  copy_pointclouds: true     # 是否复制点云
+  copy_odoms: true           # 是否复制 odom 文件
+  copy_optimized_poses: true # 是否复制优化位姿
+  generate_manifest: true    # 是否生成清单文件
+  skip_existing: true  # 跳过已存在的文件
+
+
+# ===================================================================
+# 点云合并配置 (04_merge_session_data.py)
+# ===================================================================
+merge_session:
+  # 输入路径
+  input:
+    project_dir:  /data/postgresql/export/
+    pointclouds_subdir: pointclouds      # 点云子目录
+    poses_subdir: sparse/vehicle_geo_pose  # 位姿子目录
+  
+  # 输出路径
+  output:
+    output_dir: /data/postgresql/export
+    output_filename: merged_map          # 输出文件名
+    save_las: true                       # 是否同时保存LAS格式
+    las_grid_size: 200.0                 # 文件分块保存的网格大小（米）
+    save_pcd: false                       # 是否同时保存PCD格式
+    save_ply: false                       # 是否同时保存PLY格式
+ 
+  # 处理参数
+  processing:
+    resample: 100        # 采样率：1表示使用所有点云，2表示每隔一个，10表示每隔10个
+    # EPSG代码会根据 search_params/default_location/longitude 自动计算，无需手动配置
+    las_precision: 0.001  # LAS文件精度（米），0.001表示1mm
+  
+  # 点云过滤（可选，未来扩展）
+  filtering:
+    enable: false
+    min_z: null         # 最小高度过滤（米）
+    max_z: null         # 最大高度过滤（米）
+    voxel_size: null    # 体素降采样大小（米）
+
+# ===================================================================
+# 源路径管理配置 (07_get_surround_hd_map.py)
+# ===================================================================
+hd_map:
+  input_folder: /data/hd_map/utm51n/
+  output_folder: /data/postgresql/export/hd_map/
+
+
+
+
+# ===================================================================
+# 源路径管理配置 (05_manage_source_paths.py)
+# ===================================================================
+source_path_management:
+  default_root: jmsroot@192.168.2.78:/data/dwm_raw_data
+  path_template: "{default_root}/{session_name}"  # 路径模板
+
+
+
+# ===================================================================
+# 日志配置
+# ===================================================================
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  date_format: '%Y-%m-%d %H:%M:%S'
