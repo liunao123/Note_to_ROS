@@ -35,9 +35,9 @@ data_import:
 search_params:
   # 默认搜索位置（苏州高铁新城某个点）
   default_location:
-    latitude: 31.42297688
-    longitude: 120.63139038
-  distance: 300.0  # 默认搜索半径（米）
+    latitude: 31.414004
+    longitude: 120.649010
+  distance: 30.0  # 默认搜索半径（米）
   # UTM区号会根据经度自动计算，无需手动配置
   limit: null      # 结果数量限制，null 表示不限制
 
@@ -58,9 +58,11 @@ data_export:
 # 点云合并配置 (04_merge_session_data.py)
 # ===================================================================
 merge_session:
+  enable_specify_position: false  # 是否启用指定位置搜索,false表示合并整个项目数据,上面指定的位置无效
   # 输入路径
   input:
-    project_dir:  /data/postgresql/export/
+    # project_dir:  /data/postgresql/export/
+    project_dir:  /data/dwm_data/20251220_3_db3/   # enable_specify_position: false 的时候，直接指定某次采集的路径
     pointclouds_subdir: pointclouds      # 点云子目录
     poses_subdir: sparse/vehicle_geo_pose  # 位姿子目录
   
@@ -69,13 +71,13 @@ merge_session:
     output_dir: /data/postgresql/export
     output_filename: merged_map          # 输出文件名
     save_las: true                       # 是否同时保存LAS格式
-    las_grid_size: 200.0                 # 文件分块保存的网格大小（米）
+    las_grid_size: 300.0                 # 文件分块保存的网格大小（米）
     save_pcd: false                       # 是否同时保存PCD格式
     save_ply: false                       # 是否同时保存PLY格式
  
   # 处理参数
   processing:
-    resample: 100        # 采样率：1表示使用所有点云，2表示每隔一个，10表示每隔10个
+    resample: 1        # 采样率：1表示使用所有点云，2表示每隔一个，10表示每隔10个
     # EPSG代码会根据 search_params/default_location/longitude 自动计算，无需手动配置
     las_precision: 0.001  # LAS文件精度（米），0.001表示1mm
   

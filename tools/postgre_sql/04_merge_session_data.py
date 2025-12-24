@@ -676,6 +676,7 @@ def main():
     
     # 从配置获取默认值
     input_config = merge_config.get('input', {})
+    enable_specify_position = merge_config.get('enable_specify_position', True)
     output_config = merge_config.get('output', {})
     processing_config = merge_config.get('processing', {})
 
@@ -722,7 +723,13 @@ def main():
         sys.exit(1)
 
     filter_distance = search_params.get('distance', 100.0)
-    project_dir = default_project_dir + f"/search_{default_latitude:.6f}_{default_longitude:.6f}_{filter_distance}m"
+    if enable_specify_position:
+        enable_filter = True
+        project_dir = default_project_dir + f"/search_{default_latitude:.6f}_{default_longitude:.6f}_{filter_distance}m"
+    else:
+        enable_filter = False
+        print("不指定搜索位置，禁用空间过滤，使用完整点云合并，上述指定的位置参数将被忽略")
+
     pointclouds_subdir = input_config.get('pointclouds_subdir', 'pointclouds')
     poses_subdir = input_config.get('poses_subdir', 'sparse/vehicle_geo_pose')
     
