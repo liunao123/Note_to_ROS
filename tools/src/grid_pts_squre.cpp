@@ -1,6 +1,7 @@
 #include <iostream>
 #include <pcl/io/pcd_io.h>
 #include <pcl/filters/crop_box.h>
+#include <pcl/filters/voxel_grid.h>
 #include <pcl/common/common.h>
 #include <sstream>
 #include <iomanip>
@@ -8,6 +9,18 @@
 #include <vector>
 #include <algorithm>
 #include <opencv2/opencv.hpp>
+
+// 绘制网格边界
+std::vector<cv::Scalar> colors = {
+    cv::Scalar(255, 0, 0),    // 蓝色
+    cv::Scalar(0, 255, 0),    // 绿色
+    cv::Scalar(0, 0, 255),    // 红色
+    cv::Scalar(255, 255, 0),  // 青色
+    cv::Scalar(255, 0, 255),  // 品红
+    cv::Scalar(0, 255, 255),  // 黄色
+    cv::Scalar(128, 0, 128),  // 紫色
+    cv::Scalar(255, 128, 0),  // 橙色
+};
 
 // 定义点云类型
 typedef pcl::PointXYZI PointType;
@@ -29,17 +42,22 @@ int main()
 {
     // ==================== 配置参数 ====================
     // 输入输出路径
+    // 把关键帧的位置给出来，作为分布
     std::string input_pcd_path = "/mnt/nvme0n1p2/Note_to_ROS/tools/data/keypose26.pcd";
     std::string output_dir = "/mnt/nvme0n1p2/data/pcd_grid/";
     
     // 网格划分参数
     double base_grid_size = 120.0;      // 基准网格边长(米)
-    int min_points_per_grid = 100;       // 最小点数阈值,少于此值会合并到相邻网格
     double max_aspect_ratio = 1.5;     // 最大长宽比限制
+    const int min_points_per_grid  = 20;   // 最小点数阈值,少于此值会合并到相邻网格
+    
+    // 体素滤波参数
+    bool use_voxel_filter = true;      // 是否启用体素滤波
+    double voxel_leaf_size = 0.50;      // 体素大小(米)
     
     // 测试选项(仅使用部分点进行快速测试)
-    bool use_partial_points = true;     // 是否启用部分点测试
-    size_t max_test_points = 1000;      // 测试时使用的最大点数
+    // bool use_partial_points = true;     // 是否启用部分点测试
+    size_t max_test_points = -1000;      // 测试时使用的最大点数
     
     // ==================================================
     
@@ -52,15 +70,32 @@ int main()
     }
     std::cout << "Original Point Cloud: " << cloud->size() << " points" << std::endl;
     
+    // 体素滤波
+    if (use_voxel_filter)
+    {
+        pcl::PointCloud<PointType>::Ptr cloud_filtered(new pcl::PointCloud<PointType>);
+        pcl::VoxelGrid<PointType> voxel_filter;
+        voxel_filter.setInputCloud(cloud);
+        voxel_filter.setLeafSize(voxel_leaf_size, voxel_leaf_size, voxel_leaf_size);
+        voxel_filter.filter(*cloud_filtered);
+        
+        std::cout << "Voxel filtered (" << voxel_leaf_size << "m): " 
+                  << cloud->size() << " -> " << cloud_filtered->size() 
+                  << " points (" << std::fixed << std::setprecision(1) 
+                  << (100.0 * cloud_filtered->size() / cloud->size()) << "%)" << std::endl;
+        
+        cloud = cloud_filtered;
+    }
+    
     // 创建输出目录
     mkdir(output_dir.c_str(), 0755);
 
     // 部分点测试模式
-    if (use_partial_points && cloud->size() > max_test_points)
+    if (max_test_points > 0 && cloud->size() > max_test_points)
     {
         pcl::PointCloud<PointType>::Ptr cloud_partial(new pcl::PointCloud<PointType>);
         cloud_partial->points.reserve(max_test_points);
-        for (size_t i = 0; i < max_test_points && i < cloud->size(); i++)
+        for (size_t i = 2200; i < 2200 + max_test_points && i < cloud->size(); i++)
         {
             cloud_partial->points.push_back(cloud->points[i]);
         }
@@ -163,11 +198,11 @@ int main()
         double strip_max_y = x_strip_points.back().point.y;
         double strip_y_range = strip_max_y - strip_min_y;
         
-        std::cout << "X strip " << i << ": [" << std::fixed << std::setprecision(1) 
-                  << x_boundaries[i] << ", " << x_boundaries[i + 1] << "], "
-                  << x_strip_points.size() << " points, Y range [" 
-                  << strip_min_y << ", " << strip_max_y << "] = " 
-                  << strip_y_range << "m" << std::endl;
+        // std::cout << "X strip " << i << ": [" << std::fixed << std::setprecision(1) 
+        //           << x_boundaries[i] << ", " << x_boundaries[i + 1] << "], "
+        //           << x_strip_points.size() << " points, Y range [" 
+        //           << strip_min_y << ", " << strip_max_y << "] = " 
+        //           << strip_y_range << "m" << std::endl;
         
         // 计算X方向的实际宽度
         double strip_x_size = x_boundaries[i + 1] - x_boundaries[i];
@@ -176,9 +211,9 @@ int main()
         double max_y_grid_size = strip_x_size * max_aspect_ratio;
         double actual_y_grid_size = std::min(base_grid_size, max_y_grid_size);
         
-        std::cout << "  X size: " << std::setprecision(1) << strip_x_size 
-                  << "m, Max Y size: " << actual_y_grid_size << "m (ratio limit: " 
-                  << max_aspect_ratio << ")" << std::endl;
+        // std::cout << "  X size: " << std::setprecision(1) << strip_x_size 
+        //           << "m, Max Y size: " << actual_y_grid_size << "m (ratio limit: " 
+        //           << max_aspect_ratio << ")" << std::endl;
         
         // 从下到上按固定边长划分Y方向
         std::vector<pcl::PointCloud<PointType>::Ptr> strip_grids;
@@ -232,57 +267,68 @@ int main()
             }
         }
         
-        // 合并点数少的网格到相邻网格
-        for (size_t k = 0; k < strip_grids.size(); k++)
+        // 合并点数少的网格到相邻网格（多轮循环直到无法合并）
+        bool y_has_merge = true;
+        int y_merge_round = 0;
+        while (y_has_merge)
         {
-            if (strip_grids[k]->size() > 0 && strip_grids[k]->size() < min_points_per_grid)
+            y_has_merge = false;
+            y_merge_round++;
+            
+            for (size_t k = 0; k < strip_grids.size(); k++)
             {
-                // 找到最近的相邻网格进行合并
-                int merge_target = -1;
-                
-                // 优先合并到下方的网格
-                if (k > 0 && strip_grids[k - 1]->size() > 0)
+                if (strip_grids[k]->size() > 0 && strip_grids[k]->size() < min_points_per_grid)
                 {
-                    merge_target = k - 1;
-                }
-                // 否则合并到上方
-                else if (k + 1 < strip_grids.size() && strip_grids[k + 1]->size() > 0)
-                {
-                    merge_target = k + 1;
-                }
+                    // 找到最近的相邻网格进行合并
+                    int merge_target = -1;
+                    
+                    // 优先合并到下方的网格
+                    if (k > 0 && strip_grids[k - 1]->size() > 0)
+                    {
+                        merge_target = k - 1;
+                    }
+                    // 否则合并到上方
+                    else if (k + 1 < strip_grids.size() && strip_grids[k + 1]->size() > 0)
+                    {
+                        merge_target = k + 1;
+                    }
                 
                 if (merge_target != -1)
                 {
-                    // 检查合并后是否会违反长宽比约束
+                    // 检查合并后的Y方向尺寸（不检查长宽比，只检查最长边）
                     double merged_min_y = std::min(strip_boundaries[merge_target].min_y, strip_boundaries[k].min_y);
                     double merged_max_y = std::max(strip_boundaries[merge_target].max_y, strip_boundaries[k].max_y);
                     double merged_y_size = merged_max_y - merged_min_y;
                     double x_size = strip_boundaries[k].max_x - strip_boundaries[k].min_x;
-                    double merged_aspect_ratio = std::max(x_size / merged_y_size, merged_y_size / x_size);
                     
-                    // 如果合并后长宽比会超过限制，跳过合并
-                    if (merged_aspect_ratio > max_aspect_ratio)
+                    // 只检查最长边是否超过限制（不检查长宽比）
+                    double max_edge = std::max(x_size, merged_y_size);
+                    double max_allowed_edge = base_grid_size * max_aspect_ratio;
+                    
+                    // 如果合并后最长边不超过限制，就合并
+                    if (max_edge <= max_allowed_edge)
                     {
-                        continue;
+                        // 合并点云
+                        for (const auto& pt : strip_grids[k]->points)
+                        {
+                            strip_grids[merge_target]->points.push_back(pt);
+                        }
+                        
+                        // 更新边界
+                        strip_boundaries[merge_target].min_y = merged_min_y;
+                        strip_boundaries[merge_target].max_y = merged_max_y;
+                        strip_boundaries[merge_target].point_count = strip_grids[merge_target]->size();
+                        
+                        // 清空被合并的网格
+                        strip_grids[k]->points.clear();
+                        strip_boundaries[k].point_count = 0;
+                        
+                        y_has_merge = true;  // 标记本轮有合并发生
                     }
-                    
-                    // 合并点云
-                    for (const auto& pt : strip_grids[k]->points)
-                    {
-                        strip_grids[merge_target]->points.push_back(pt);
-                    }
-                    
-                    // 更新边界
-                    strip_boundaries[merge_target].min_y = merged_min_y;
-                    strip_boundaries[merge_target].max_y = merged_max_y;
-                    strip_boundaries[merge_target].point_count = strip_grids[merge_target]->size();
-                    
-                    // 清空被合并的网格
-                    strip_grids[k]->points.clear();
-                    strip_boundaries[k].point_count = 0;
                 }
             }
         }
+        }  // end while for Y-direction merge
         
         // 添加到总网格列表
         grids.push_back(strip_grids);
@@ -294,6 +340,177 @@ int main()
     }
     
     std::cout << "\nTotal grids created: " << total_grids << std::endl;
+    
+    // ========== X方向合并：处理点数少于min_points_per_grid的网格 ==========
+    std::cout << "\n=== X Direction Merging for grids with < " << min_points_per_grid << " points ===" << std::endl;
+    int x_merge_count = 0;
+    int merge_round = 0;
+    bool has_merge = true;
+    
+    // 多轮合并，直到没有可合并的网格
+    while (has_merge)
+    {
+        merge_round++;
+        has_merge = false;
+        std::cout << "\n--- Merge Round " << merge_round << " ---" << std::endl;
+        
+        for (size_t i = 0; i < grids.size(); i++)
+        {
+            for (size_t j = 0; j < grids[i].size(); j++)
+            {
+                // 跳过空网格或已经足够大的网格
+                if (grids[i][j]->size() == 0 || grids[i][j]->size() >= min_points_per_grid)
+                    continue;
+            
+            // 找到当前网格的边界信息
+            GridBoundary* current_gb = nullptr;
+            for (auto& gb : grid_boundaries)
+            {
+                if (gb.grid_i == i && gb.grid_j == j && gb.point_count > 0)
+                {
+                    current_gb = &gb;
+                    break;
+                }
+            }
+            
+            if (current_gb == nullptr)
+                continue;
+            
+            // 尝试在X方向上找相邻的网格进行合并
+            int merge_target_i = -1;
+            size_t merge_target_j = 0;
+            GridBoundary* merge_target_gb = nullptr;
+            
+            // 优先尝试合并到左侧（i-1）
+            if (i > 0)
+            {
+                for (size_t k = 0; k < grids[i-1].size(); k++)
+                {
+                    if (grids[i-1][k]->size() == 0)
+                        continue;
+                    
+                    // 找到对应的边界
+                    for (auto& gb : grid_boundaries)
+                    {
+                        if (gb.grid_i == (int)(i-1) && gb.grid_j == k && gb.point_count > 0)
+                        {
+                            // 检查Y方向是否有重叠或相邻
+                            double y_overlap = std::min(current_gb->max_y, gb.max_y) - 
+                                             std::max(current_gb->min_y, gb.min_y);
+                            double y_gap = std::max(current_gb->min_y, gb.min_y) - 
+                                         std::min(current_gb->max_y, gb.max_y);
+                            
+                            // 如果Y方向有重叠或间隙不大，可以合并
+                            if (y_overlap > 0 || y_gap < base_grid_size * 0.5)
+                            {
+                                merge_target_i = i - 1;
+                                merge_target_j = k;
+                                merge_target_gb = &gb;
+                                break;
+                            }
+                        }
+                    }
+                    if (merge_target_i >= 0)
+                        break;
+                }
+            }
+            
+            // 如果左侧没找到，尝试右侧（i+1）
+            if (merge_target_i < 0 && i + 1 < grids.size())
+            {
+                for (size_t k = 0; k < grids[i+1].size(); k++)
+                {
+                    if (grids[i+1][k]->size() == 0)
+                        continue;
+                    
+                    // 找到对应的边界
+                    for (auto& gb : grid_boundaries)
+                    {
+                        if (gb.grid_i == (int)(i+1) && gb.grid_j == k && gb.point_count > 0)
+                        {
+                            // 检查Y方向是否有重叠或相邻
+                            double y_overlap = std::min(current_gb->max_y, gb.max_y) - 
+                                             std::max(current_gb->min_y, gb.min_y);
+                            double y_gap = std::max(current_gb->min_y, gb.min_y) - 
+                                         std::min(current_gb->max_y, gb.max_y);
+                            
+                            // 如果Y方向有重叠或间隙不大，可以合并
+                            if (y_overlap > 0 || y_gap < base_grid_size * 0.5)
+                            {
+                                merge_target_i = i + 1;
+                                merge_target_j = k;
+                                merge_target_gb = &gb;
+                                break;
+                            }
+                        }
+                    }
+                    if (merge_target_i >= 0)
+                        break;
+                }
+            }
+            
+            // 执行合并（只检查最长边约束，不检查长宽比）
+            if (merge_target_i >= 0 && merge_target_gb != nullptr)
+            {
+                // 计算合并后的尺寸
+                double merged_min_x = std::min(merge_target_gb->min_x, current_gb->min_x);
+                double merged_max_x = std::max(merge_target_gb->max_x, current_gb->max_x);
+                double merged_min_y = std::min(merge_target_gb->min_y, current_gb->min_y);
+                double merged_max_y = std::max(merge_target_gb->max_y, current_gb->max_y);
+                
+                double merged_x_size = merged_max_x - merged_min_x;
+                double merged_y_size = merged_max_y - merged_min_y;
+                
+                // 只检查最长边是否超过限制
+                double max_edge = std::max(merged_x_size, merged_y_size);
+                double max_allowed_edge = base_grid_size * max_aspect_ratio;
+                
+                // 只检查最长边约束（不检查长宽比）
+                if (max_edge <= max_allowed_edge)
+                {
+                    double merged_aspect_ratio = std::max(merged_x_size / merged_y_size, 
+                                                          merged_y_size / merged_x_size);
+                    std::cout << "  Merging grid [" << i << "," << j << "] (" 
+                              << grids[i][j]->size() << " pts) into [" 
+                              << merge_target_i << "," << merge_target_j << "] (" 
+                              << grids[merge_target_i][merge_target_j]->size() << " pts)"
+                              << " | aspect ratio: " << std::setprecision(2) << merged_aspect_ratio 
+                              << ", max edge: " << std::setprecision(1) << max_edge << "m" << std::endl;
+                    
+                    // 合并点云
+                    for (const auto& pt : grids[i][j]->points)
+                    {
+                        grids[merge_target_i][merge_target_j]->points.push_back(pt);
+                    }
+                    
+                    // 更新目标网格的边界
+                    merge_target_gb->min_x = merged_min_x;
+                    merge_target_gb->max_x = merged_max_x;
+                    merge_target_gb->min_y = merged_min_y;
+                    merge_target_gb->max_y = merged_max_y;
+                    merge_target_gb->point_count = grids[merge_target_i][merge_target_j]->size();
+                    
+                    // 清空当前网格
+                    grids[i][j]->points.clear();
+                    current_gb->point_count = 0;
+                    
+                    x_merge_count++;
+                    has_merge = true;  // 标记本轮有合并发生
+                }
+                else
+                {
+                    std::cout << "  ⚠ Grid [" << i << "," << j << "] (" 
+                              << grids[i][j]->size() << " pts) cannot merge: "
+                              << "max edge " << std::setprecision(1) << max_edge 
+                              << "m (limit: " << max_allowed_edge << "m)" << std::endl;
+                }
+            }
+        }
+    }
+    }  // end while
+    
+    std::cout << "\nX-direction merges completed: " << x_merge_count << " grids merged in " 
+              << merge_round << " rounds" << std::endl;
     
     // 统计并保存每个网格
     int total_saved_points = 0;
@@ -332,17 +549,24 @@ int main()
                 min_points = std::min(min_points, grid_size);
                 max_points = std::max(max_points, grid_size);
                 
-                // 计算网格边长
+                // 计算网格边长和中心点
                 double x_size = 0, y_size = 0;
+                double center_x = 0, center_y = 0;
                 for (const auto& gb : grid_boundaries)
                 {
                     if (gb.grid_i == i && gb.grid_j == j)
                     {
                         x_size = gb.max_x - gb.min_x;
                         y_size = gb.max_y - gb.min_y;
+                        center_x = (gb.min_x + gb.max_x) / 2.0;
+                        center_y = (gb.min_y + gb.max_y) / 2.0;
                         break;
                     }
                 }
+                
+                // 确定短边和长边
+                double short_edge = std::min(x_size, y_size);
+                double long_edge = std::max(x_size, y_size);
                 
                 // 生成文件名
                 std::stringstream ss;
@@ -352,6 +576,13 @@ int main()
                 std::string filename = ss.str();
                 
                 pcl::io::savePCDFileBinary(filename, *grids[i][j]);
+                
+                // 输出保存的网格信息
+                std::cout << "  Saved Grid [" << i << "," << j << "]: " 
+                          << grid_size << " points, center: (" 
+                          << std::setprecision(2) << center_x << ", " << center_y 
+                          << "), size: " << std::setprecision(1) 
+                          << short_edge << "m x " << long_edge << "m" << std::endl;
                 
                 total_saved_points += grid_size;
                 non_empty_grids++;
@@ -399,17 +630,7 @@ int main()
         }
     }
     
-    // 绘制网格边界
-    std::vector<cv::Scalar> colors = {
-        cv::Scalar(255, 0, 0),    // 蓝色
-        cv::Scalar(0, 255, 0),    // 绿色
-        cv::Scalar(0, 0, 255),    // 红色
-        cv::Scalar(255, 255, 0),  // 青色
-        cv::Scalar(255, 0, 255),  // 品红
-        cv::Scalar(0, 255, 255),  // 黄色
-        cv::Scalar(128, 0, 128),  // 紫色
-        cv::Scalar(255, 128, 0),  // 橙色
-    };
+
     
     for (const auto& gb : grid_boundaries)
     {
@@ -431,7 +652,7 @@ int main()
         std::stringstream ss;
         ss << "[" << gb.grid_i << "," << gb.grid_j << "]";
         cv::putText(visualization, ss.str(), cv::Point(text_pos.x - 30, text_pos.y - 10),
-                    cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 2);
+                    cv::FONT_HERSHEY_SIMPLEX, 0.5, color, 1);
         
         ss.str("");
         ss << gb.point_count << " pts";

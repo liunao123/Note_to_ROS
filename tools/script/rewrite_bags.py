@@ -20,15 +20,15 @@ def convertHeadingToYaw( heading ):
     return yaw
  
 
-save_topics = {"/bynav/inspvax", "/lidar_points", "/gps/fix", "/gps/gps", "/bynav/heading2", "/odom", "/lidar_imu" , "/bynav/bestpos","/bynav/inspva" }  
+save_topics = {"/bynav/inspvax", "/lidar_points", "/gps/fix", "/gps/gps", "/bynav/heading2", "/odom", "/lidar_imu" , "/bynav/bestpos","/bynav/inspva" , "/ros1/sensor/camera/video3/image/rgb", "/ros1/sensor/camera/video4/image/rgb", "/ros1/sensor/camera/video5/image/rgb", "/ros1/sensor/camera/video6/image/rgb", "/ros1/sensor/camera/video7/image/rgb"}  
 # save_topics = {"/lidar_points", "/odom"}  
 
 if __name__ == '__main__':
     # source ~/Desktop/ros_ws/devel/setup.bash
     # 使用前请source chcnav ros环境
 
-    input_dir = "/media/tyjt/Elements/nongan/1024/2/"
-    merged_bag_file = "/media/tyjt/Elements/nongan/1024_2.bag"
+    input_dir = "/media/tyjt/Elements/1/"
+    merged_bag_file = "/mnt/nvme0n1p2/data/test/2.bag"
     
     
     print("\ninput_dir %s " % (input_dir))
