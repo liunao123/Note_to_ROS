@@ -10,7 +10,8 @@ message(STATUS "PCL version: ${PCL_VERSION}")
 
 find_package(OpenCV REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(Ceres REQUIRED)
+find_package(GeographicLib REQUIRED)
+# find_package(Ceres REQUIRED)
 find_package(Boost REQUIRED COMPONENTS program_options)
 find_package(yaml-cpp REQUIRED)
 include_directories(   ${EIGEN3_INCLUDE_DIR}  )
@@ -39,6 +40,16 @@ target_link_libraries(select_point_with_range
 )
 
 
+SET(src_file grid_pts_squre)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file}   ${PCL_LIBRARIES} ${OpenCV_LIBS} ${GeographicLib_LIBRARIES} )
+
+
+SET(src_file get_session_data_and_sample)
+add_executable (${src_file} src/${src_file}.cpp )
+target_link_libraries (${src_file}   ${PCL_LIBRARIES} ${OpenCV_LIBS} ${YAML_CPP_LIBRARIES})
+# yaml-cpp
+
 SET(src_file box_filter)
 add_executable (${src_file} src/${src_file}.cpp )
 target_link_libraries (${src_file}   ${PCL_LIBRARIES} )
@@ -58,16 +69,15 @@ target_link_libraries(poses_interpolator
 
 
 # Create executable
-add_executable(get_session_data src/get_session_data.cpp)
+add_executable(get_session_data_manfu_3d src/get_session_data_manfu_3d.cpp)
 
 # Link libraries
-target_link_libraries(get_session_data ${PCL_LIBRARIES}
+target_link_libraries(get_session_data_manfu_3d ${PCL_LIBRARIES}
     ${Boost_LIBRARIES}
     ${EIGEN3_LIBRARIES}
-    yaml-cpp
     ${libLAS_LIBRARIES}
     ${PROJ_LIBRARIES}
-
+    yaml-cpp
 )
 
 
@@ -123,9 +133,9 @@ target_link_libraries (${src_file} pack )
 # add_executable (${src_file} src/${src_file}.cpp )
 # target_link_libraries (${src_file}   ${PCL_LIBRARIES}  ${OpenCV_LIBRARIES} )
 
-SET(src_file cal_eigen_value)
-add_executable (${src_file} src/${src_file}.cpp )
-target_link_libraries (${src_file}   ${PCL_LIBRARIES} Ceres::ceres gflags)
+# SET(src_file cal_eigen_value)
+# add_executable (${src_file} src/${src_file}.cpp )
+# target_link_libraries (${src_file}   ${PCL_LIBRARIES} Ceres::ceres gflags)
 
 SET(src_file passthrough)
 add_executable (${src_file} src/${src_file}.cpp )

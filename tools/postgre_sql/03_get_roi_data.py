@@ -10,18 +10,23 @@ import sys
 import shutil
 import json
 import argparse
-import yaml
 from pathlib import Path
 from typing import List, Dict
 import logging
+from qt.load_config import load_config
+
+# 导入3D box投影工具函数
+from qt.box_projection import (
+    clip_hd_map_by_config
+)
 
 # 导入搜索工具
 # 动态导入，避免循环依赖
 import importlib.util
-search_poses_path = Path(__file__).parent / "qt" / "03_search_poses.py"
+search_poses_path = Path(__file__).parent / "qt" / "search_poses.py"
 if not search_poses_path.exists():
     # 如果qt目录下不存在，尝试当前目录
-    search_poses_path = Path(__file__).parent / "03_search_poses.py"
+    search_poses_path = Path(__file__).parent / "search_poses.py"
     
 if not search_poses_path.exists():
     raise FileNotFoundError(f"找不到搜索模块: {search_poses_path}")
@@ -39,56 +44,46 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-
-def load_config(config_file: str = None) -> dict:
-    """
-    加载配置文件
-    
-    Args:
-        config_file: 配置文件路径，默认为脚本所在目录的 config.yaml
-        
-    Returns:
-        配置字典
-    """
-    if config_file is None:
-        # 默认使用脚本所在目录的 config.yaml
-        script_dir = Path(__file__).parent
-        config_file = script_dir / "config.yaml"
-    
-    config_path = Path(config_file)
-    if not config_path.exists():
-        raise FileNotFoundError(f"配置文件不存在: {config_path}")
-    
-    with open(config_path, 'r', encoding='utf-8') as f:
-        config = yaml.safe_load(f)
-    
-    logger.info(f"已加载配置文件: {config_path}")
-    return config
-
-
-# 加载配置
-CONFIG = load_config()
-
-
 class PoseExporter:
     """位姿数据导出器"""
     
-    def __init__(self, output_root: Path):
+    def __init__(self, output_root: Path, *, copy_options: Dict[str, bool] | None = None):
         """
         初始化导出器
         
         Args:
             output_root: 输出根目录
+            copy_options: 复制开关配置，例如:
+                {
+                    'copy_images': True,
+                    'copy_pointclouds': True,
+                    'copy_odoms': True,
+                    'copy_optimized_poses': True,
+                    'copy_labels': True,
+                }
         """
         self.output_root = Path(output_root)
+        self.copy_options = {
+            'copy_images': True,
+            'copy_pointclouds': True,
+            'copy_odoms': True,
+            'copy_optimized_poses': True,
+            'copy_labels': True,
+            'copy_masks': True,
+        }
+        if copy_options:
+            self.copy_options.update({k: bool(v) for k, v in copy_options.items()})
         self.copied_files = set()  # 记录已复制的文件，避免重复
         self._session_paths = set()  # 会话路径集合，用于复制 calib
+        self._copied_static_masks = False  # 记录已复制的static masks目录
         self.stats = {
             'poses': 0,
             'odoms': 0,
             'optimized_poses': 0,
             'pointclouds': 0,
             'images': 0,
+            'labels': 0,
+            'masks': 0,
             'total_size': 0
         }
     
@@ -105,6 +100,15 @@ class PoseExporter:
             return
         
         logger.info(f"开始导出 {len(poses)} 个位姿数据到: {self.output_root}")
+        logger.info(
+            "复制开关: images=%s, pointclouds=%s, odoms=%s, optimized_poses=%s, labels=%s, masks=%s",
+            self.copy_options.get('copy_images', True),
+            self.copy_options.get('copy_pointclouds', True),
+            self.copy_options.get('copy_odoms', True),
+            self.copy_options.get('copy_optimized_poses', True),
+            self.copy_options.get('copy_labels', True),
+            self.copy_options.get('copy_masks', True),
+        )
         
         # 创建输出目录结构
         session_dir = self.output_root / session_name
@@ -112,7 +116,8 @@ class PoseExporter:
         
         # 导出每个位姿的数据
         for i, pose in enumerate(poses, 1):
-            logger.info(f"处理位姿 {i}/{len(poses)}: Frame {pose['frame_id']}")
+            if i % 100 == 0 or i == len(poses):
+                logger.info(f"处理位姿 {i}/{len(poses)}: Frame {pose['frame_id']}")
             self._export_single_pose(pose, session_dir)
 
         # 导出标定文件
@@ -128,19 +133,42 @@ class PoseExporter:
         logger.info(f"优化位姿文件: {self.stats['optimized_poses']}")
         logger.info(f"点云文件: {self.stats['pointclouds']}")
         logger.info(f"图像文件: {self.stats['images']}")
+        logger.info(f"Labels文件: {self.stats['labels']}")
+        logger.info(f"Masks文件: {self.stats['masks']}")
+        logger.info(
+            "复制开关(回显): images=%s, pointclouds=%s, odoms=%s, optimized_poses=%s, labels=%s, masks=%s",
+            self.copy_options.get('copy_images', True),
+            self.copy_options.get('copy_pointclouds', True),
+            self.copy_options.get('copy_odoms', True),
+            self.copy_options.get('copy_optimized_poses', True),
+            self.copy_options.get('copy_labels', True),
+            self.copy_options.get('copy_masks', True),
+        )
         logger.info(f"总大小: {self._format_size(self.stats['total_size'])}")
         logger.info(f"输出目录: {session_dir}")
         logger.info("="*80)
-    
+        if not self._copied_static_masks:
+            print("=" * 80)
+            logger.warning("未找到 static masks 目录，未复制 static masks")
+            print("=" * 80)
+
+
     def _create_directory_structure(self, session_dir: Path):
         """创建目录结构"""
-        dirs = [
-            session_dir / "odoms",
-            session_dir / "sparse" / "vehicle_geo_pose",
-            session_dir / "pointclouds",
-            session_dir / "images",
-            session_dir / "calib",
-        ]
+        dirs = []
+        if self.copy_options.get('copy_odoms', True):
+            dirs.append(session_dir / "odoms")
+        if self.copy_options.get('copy_optimized_poses', True):
+            dirs.append(session_dir / "sparse" / "vehicle_geo_pose")
+        if self.copy_options.get('copy_pointclouds', True):
+            dirs.append(session_dir / "pointclouds")
+        if self.copy_options.get('copy_images', True):
+            dirs.append(session_dir / "images")
+        if self.copy_options.get('copy_labels', True):
+            dirs.append(session_dir / "labels")
+        if self.copy_options.get('copy_masks', True):
+            dirs.append(session_dir / "masks")
+        # session_dir / "calib" 目录将在复制时创建
         
         for d in dirs:
             d.mkdir(parents=True, exist_ok=True)
@@ -155,7 +183,7 @@ class PoseExporter:
             self._session_paths.add(pose.get('session_path'))
         
         # 1. 复制odom文件
-        if pose.get('odom_path'):
+        if self.copy_options.get('copy_odoms', True) and pose.get('odom_path'):
             self._copy_file(
                 pose['odom_path'],
                 session_dir / "odoms" / Path(pose['odom_path']).name
@@ -163,7 +191,7 @@ class PoseExporter:
             self.stats['odoms'] += 1
         
         # 2. 复制优化位姿文件
-        if pose.get('session_path') and pose.get('opt_timestamp_full'):
+        if self.copy_options.get('copy_optimized_poses', True) and pose.get('session_path') and pose.get('opt_timestamp_full'):
             opt_pose_path = f"{pose['session_path']}/sparse/vehicle_geo_pose/{pose['frame_id']}_{pose['opt_timestamp_full']:.3f}.yaml"
             self._copy_file(
                 opt_pose_path,
@@ -172,7 +200,7 @@ class PoseExporter:
             self.stats['optimized_poses'] += 1
         
         # 3. 复制点云文件
-        if pose.get('pointcloud_path'):
+        if self.copy_options.get('copy_pointclouds', True) and pose.get('pointcloud_path'):
             self._copy_file(
                 pose['pointcloud_path'],
                 session_dir / "pointclouds" / Path(pose['pointcloud_path']).name
@@ -180,7 +208,7 @@ class PoseExporter:
             self.stats['pointclouds'] += 1
         
         # 4. 复制图像文件
-        if pose.get('image_paths'):
+        if self.copy_options.get('copy_images', True) and pose.get('image_paths'):
             image_paths_dict = pose['image_paths']
             if isinstance(image_paths_dict, str):
                 image_paths_dict = json.loads(image_paths_dict)
@@ -195,6 +223,87 @@ class PoseExporter:
                     sensor_dir / Path(img_path).name
                 )
                 self.stats['images'] += 1
+        
+        # 5. 复制labels文件
+        if self.copy_options.get('copy_labels', True) and pose.get('session_path') and pose.get('frame_id') is not None:
+            # 构建labels文件路径：session_path/labels/frame_id_timestamp.json
+            # 从odom_path中提取时间戳部分（如果有odom_path）
+            if pose.get('odom_path'):
+                odom_filename = Path(pose['odom_path']).stem  # 如: 0_1763951779.000
+                label_path = f"{pose['session_path']}/labels/{odom_filename}.json"
+                gd_label_path = f"{pose['session_path']}/debug_files/3dbox/{odom_filename}_gd.json"
+                
+                self._copy_file(
+                    label_path,
+                    session_dir / "labels" / Path(label_path).name
+                )
+                self.stats['labels'] += 1
+                
+                self._copy_file(
+                    gd_label_path,
+                    session_dir / "debug_files" / "3dbox" / Path(gd_label_path).name
+                )
+                self.stats['labels'] += 1
+        
+        # 6. 复制masks文件（保持原始目录结构）
+        if self.copy_options.get('copy_masks', True) and pose.get('session_path') and pose.get('image_paths'):
+            session_path = pose['session_path']
+            if not self._copied_static_masks:
+                static_masks_dir = Path("/data/dwm_data/mask_static/static")
+                if static_masks_dir.exists():
+                    output_static_dir = session_dir / "masks/static" 
+                    try:
+                        shutil.copytree(static_masks_dir, output_static_dir, dirs_exist_ok=True)
+                        self._copied_static_masks = True
+                        print("已复制 static masks 目录 ")
+                    except Exception as e:
+                        logger.error(f"复制 static/masks 目录失败 {static_masks_dir} -> {output_static_dir}: {e}")
+                        exit(1)
+                else:
+                    print("=" * 80)
+                    print(f"[WARN] static masks 目录不存在: {static_masks_dir}, 跳过复制 static masks")
+                    print("=" * 80) 
+            
+            # masks文件夹结构：session_path/masks/dynamic/{sensor_name}/{frame_id}_{timestamp}.png
+            # 使用odom_path提取frame_id_timestamp部分
+            odom_filename = Path(pose['odom_path']).stem  # 如: 0_1763951779.000
+            mask_filename = f"{odom_filename}.png"  # 如: 0_1763951779.000.png
+            
+            image_paths_dict = pose['image_paths']
+            if isinstance(image_paths_dict, str):
+                image_paths_dict = json.loads(image_paths_dict)
+            
+            for sensor_name, img_path in image_paths_dict.items():
+                # masks目录路径 - dynamic
+                masks_sensor_dir = Path(session_path) / "masks" / "dynamic" / sensor_name
+                mask_file_path = masks_sensor_dir / mask_filename
+                # print(f"检查 mask 文件: {mask_file_path}")
+                if mask_file_path.exists():
+                    # 创建对应的输出子目录
+                    target_dir = session_dir / "masks" / "dynamic" / sensor_name
+                    target_dir.mkdir(parents=True, exist_ok=True)
+                    # print(f"检查 mask 文件: {target_dir / mask_filename}")
+                    self._copy_file(
+                        str(mask_file_path),
+                        target_dir / mask_filename
+                    )
+                    self.stats['masks'] += 1
+                
+                # masks目录路径 - sky
+                masks_sensor_dir_sky = Path(session_path) / "masks" / "sky" / sensor_name
+                mask_file_path_sky = masks_sensor_dir_sky / mask_filename
+                # print(f"检查 sky mask 文件: {mask_file_path_sky}")
+                if mask_file_path_sky.exists():
+                    # 创建对应的输出子目录
+                    target_dir_sky = session_dir / "masks" / "sky" / sensor_name
+                    target_dir_sky.mkdir(parents=True, exist_ok=True)
+                    self._copy_file(
+                        str(mask_file_path_sky),
+                        target_dir_sky / mask_filename
+                    )
+                    self.stats['masks'] += 1
+                else:
+                    print(f"[WARN] 未找到 sky mask 文件: {mask_file_path_sky}，跳过复制 sky mask")
     
     def _copy_file(self, src: str, dst: Path):
         """
@@ -246,7 +355,9 @@ class PoseExporter:
                 'odoms': self.stats['odoms'],
                 'optimized_poses': self.stats['optimized_poses'],
                 'pointclouds': self.stats['pointclouds'],
-                'images': self.stats['images']
+                'images': self.stats['images'],
+                'labels': self.stats['labels'],
+                'masks': self.stats['masks']
             }
         }
         
@@ -313,121 +424,142 @@ class PoseExporter:
 
 def main():
     """主函数"""
-    # 从配置文件获取默认值
-    search_params = CONFIG.get('search_params', {})
-    default_location = search_params.get('default_location', {})
-    data_export = CONFIG.get('data_export', {})
-    
     # 解析命令行参数
-    parser = argparse.ArgumentParser(
-        description='位姿数据导出工具 - 将搜索到的位姿及其关联文件复制到单独的文件夹',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-示例:
-  # 使用默认配置
-  python 03_search_poses_and_copy_files.py
-  
-  # 指定输出目录
-  python 03_search_poses_and_copy_files.py -o /path/to/output
-  
-  # 指定输出目录和会话名称
-  python 03_search_poses_and_copy_files.py -o /path/to/output -n my_session
-  
-  # 修改搜索参数
-  python 03_search_poses_and_copy_files.py -o /tmp/export --lat 31.41 --lon 120.66 --distance 50
-        """
-    )
-    
-    parser.add_argument(
-        '-o', '--output',
-        type=str,
-        default=data_export.get('root_dir', '/mnt/nvme0n1p2/project/postgresql/export/'),
-        help=f'输出根目录 (默认: {data_export.get("root_dir", "/mnt/nvme0n1p2/project/postgresql/export/")})'
-    )
-    
-    parser.add_argument(
-        '-n', '--name',
-        type=str,
-        default=None,
-        help='会话名称 (默认: 自动生成为 search_LAT_LON_DISTm)'
-    )
-    
-    parser.add_argument(
-        '--lat',
-        type=float,
-        default=default_location.get('latitude', 31.41033324),
-        help=f'目标纬度 (默认: {default_location.get("latitude", 31.41033324)})'
-    )
-    
-    parser.add_argument(
-        '--lon',
-        type=float,
-        default=default_location.get('longitude', 120.65582103),
-        help=f'目标经度 (默认: {default_location.get("longitude", 120.65582103)})'
-    )
-    
-    parser.add_argument(
-        '--distance',
-        type=float,
-        default=search_params.get('distance', 100.0),
-        help=f'搜索半径(米) (默认: {search_params.get("distance", 100.0)})'
-    )
-    
-    parser.add_argument(
-        '--limit',
-        type=int,
-        default=search_params.get('limit'),
-        help='限制导出的位姿数量 (默认: 无限制)'
-    )
-    
+    parser = argparse.ArgumentParser(description='位姿数据导出工具')
+    parser.add_argument('--longitude', '--lon', type=float, default=None,
+                        help='Target longitude (default: from config)')
+    parser.add_argument('--latitude', '--lat', type=float, default=None,
+                        help='Target latitude (default: from config)')
+    parser.add_argument('--roi_distance_min', type=float, default=None,
+                        help='ROI distance min in meters (default: from config)')
+    parser.add_argument('--roi_distance_max', type=float, default=None,
+                        help='ROI distance max in meters (default: from config)')
     args = parser.parse_args()
     
+    # 从配置文件获取默认值
+    # 加载配置
+    config = load_config()
+    search_params = config.get('search_params', {})
+    default_location = search_params.get('default_location', {})
+    
+    # 获取会话名称列表（用于过滤搜索范围）
+    search_session_names = search_params.get('use_session_subdir', [])
+    print(f"搜索会话子目录: {search_session_names if search_session_names else '全部会话'}")
+
+    # 直接使用配置文件中的参数
     print("\n" + "="*80)
     print("  位姿数据导出工具")
     print("="*80)
-    
-    # 搜索参数
-    target_lon = args.lon
-    target_lat = args.lat
-    distance = args.distance
-    
-    # 输出目录
-    output_root = Path(args.output)
-    session_name = args.name if args.name else f"search_{target_lat:.6f}_{target_lon:.6f}_{distance}m"
-    
+
+    # 搜索参数 - 命令行参数优先，否则使用配置文件的值
+    target_lat = args.latitude if args.latitude is not None else default_location.get('latitude', 31.41033324)
+    target_lon = args.longitude if args.longitude is not None else default_location.get('longitude', 120.65582103)
+    roi_distance_max = args.roi_distance_max if args.roi_distance_max is not None else search_params.get('roi_distance_max', 100.0)
+    roi_distance_min = args.roi_distance_min if args.roi_distance_min is not None else search_params.get('roi_distance_min', 50.0)
+    limit = search_params.get('limit')
+
+    # 复制开关（6个参数）
+    copy_options = {
+        'copy_images': search_params.get('copy_images', True),
+        'copy_pointclouds': search_params.get('copy_pointclouds', True),
+        'copy_odoms': search_params.get('copy_odoms', True),
+        'copy_optimized_poses': search_params.get('copy_optimized_poses', True),
+        'copy_labels': search_params.get('copy_labels', True),
+        'copy_masks': search_params.get('copy_masks', True),
+    }
+
+    print("\n复制开关:")
+    print(f"  copy_images: {copy_options['copy_images']}")
+    print(f"  copy_pointclouds: {copy_options['copy_pointclouds']}")
+    print(f"  copy_odoms: {copy_options['copy_odoms']}")
+    print(f"  copy_optimized_poses: {copy_options['copy_optimized_poses']}")
+    print(f"  copy_labels: {copy_options['copy_labels']}")
+    print(f"  copy_masks: {copy_options['copy_masks']}")
+
+    # 输出目录和会话名模板直接从 search_params 读取
+    output_root = Path(search_params.get('export_dir', '/mnt/nvme0n2/project/postgresql/export/'))
+    session_name_template = search_params.get('session_name_template', 'search_{lat:.6f}_{lon:.6f}_{roi_distance_min}_{roi_distance_max}m')
+    session_name = session_name_template.format(lat=target_lat, lon=target_lon, roi_distance_min=roi_distance_min, roi_distance_max=roi_distance_max)
+
     print(f"\n搜索参数:")
     print(f"  目标位置: ({target_lat:.6f}, {target_lon:.6f})")
-    print(f"  搜索半径: {distance} 米")
+    print(f"  搜索半径: {roi_distance_max} 米")
     print(f"  UTM区号: 自动计算")
-    if args.limit:
-        print(f"  导出限制: {args.limit} 个位姿")
+    if limit:
+        print(f"  导出限制: {limit} 个位姿")
     print(f"\n输出配置:")
     print(f"  输出根目录: {output_root}")
     print(f"  会话名称: {session_name}")
     print(f"  完整路径: {output_root / session_name}")
     print("-" * 80)
+    # exit()
+
+    # 获取并裁切高精地图数据
+    print("\n步骤0: 裁切高精地图数据...")
+    hd_map_config = config.get('hd_map', {})
+    input_folder = hd_map_config.get('input_folder')
+    output_folder = str (output_root / session_name / "hd_map")
+
+    print("input_folder : ", input_folder)
+    print("output_folder : ", output_folder)
+    if input_folder and os.path.exists(input_folder):
+        clip_hd_map_by_config(target_lon, target_lat, roi_distance_max, input_folder, output_folder)
+        print("高精地图裁切完成。\n")
+    else:
+        print("-" * 80)
+        print(f"[WARN] 高精地图文件 {input_folder} 不存在，跳过高精地图裁切。")
+        print("-" * 80)
 
     # 搜索位姿
     print("\n步骤1: 搜索位姿数据...")
+    if search_session_names:
+        print(f"  限制搜索范围到以下会话: {', '.join(search_session_names)}")
+        
     with PoseSearcher(db_config) as searcher:
         poses = searcher.search_poses_by_distance(
             longitude=target_lon,
             latitude=target_lat,
-            distance_meters=distance,
-            limit=args.limit
+            distance_meters=roi_distance_max,
+            session_names=search_session_names if search_session_names else None,
+            limit=limit
         )
-    
+
     if not poses:
         print("未找到符合条件的位姿")
         return
-    
+
     print(f"找到 {len(poses)} 个位姿")
-    
+
+
+    # 导出数据前，循环查找第一个存在calib目录的会话并复制
+    copied = False
+    if poses:
+        for pose in poses:
+            session_path_for_calib = pose.get('session_path')
+            if not session_path_for_calib:
+                continue
+            src_calib = Path(session_path_for_calib) / 'calib'
+            dst_calib = output_root / session_name / 'calib'
+            if src_calib.exists():
+                try:
+                    if dst_calib.exists():
+                        shutil.rmtree(dst_calib)
+                    shutil.copytree(src_calib, dst_calib)
+                    print(f"[INFO] 已复制calib目录: {src_calib} -> {dst_calib}")
+                    copied = True
+                    break
+                except Exception as e:
+                    print(f"[ERROR] 复制calib目录失败: {e}")
+                    break
+            else:
+                print(f"[WARN] 源calib目录不存在: {src_calib}")
+    if not copied:
+        print("[WARN] 所有会话均未找到可用的calib目录，未复制calib")
     # 导出数据
     print("\n步骤2: 导出文件...")
-    exporter = PoseExporter(output_root)
+    exporter = PoseExporter(output_root, copy_options=copy_options)
     exporter.export_poses(poses, session_name)
-    
+
     print("\n完成！")
 
 

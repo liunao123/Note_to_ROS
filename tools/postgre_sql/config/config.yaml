@@ -1,0 +1,236 @@
+# PostGIS 数据管理系统配置文件
+# 所有 Python 脚本共享此配置
+
+# 数据库配置 通用部分 (所有脚本)
+# ===================================================================
+database:
+  name: gtxc_db
+  user: jmsroot
+  # 使用 Unix socket 连接时，不需要设置以下参数
+  # 如需使用 TCP 连接，请取消注释并设置：
+  # host: localhost  
+  # port: 5432       
+  # password: ""
+
+# ===================================================================
+# 数据导入配置 (01_data_importer.py)  
+# ===================================================================
+
+# !! 空文件夹也会导入，待fix
+data_import:
+  data_root: /data/dwm_data/
+  project_name: 苏州高铁新城
+  project_description: 苏州高铁新城移动测绘项目
+  # batch_size: 1000  # 批量插入大小
+  
+  # 数据源路径配置（用于 source_data_path）
+  source_data:
+    default_root: jmsroot@192.168.2.78:/data/dwm_raw_data
+    use_session_subdir: false  # 是否在 default_root 下添加 session_name 子目录
+
+# ===================================================================
+# 位姿搜索与复制配置 (03_get_roi_data.py)
+# ===================================================================
+search_params:
+  # 默认搜索位置（苏州高铁新城某个点）
+  default_location:
+    # 0_0
+    # latitude: 31.4261047
+    # longitude: 120.6266316
+    
+    # 正北100m: -1_0
+    # latitude: 31.42700660
+    # longitude: 120.62663160
+
+    # 正南100m: 1_0
+    # latitude: 31.42520280
+    # longitude: 120.62663160
+
+    # 正南200m: 2_0
+    # latitude: 31.4243009
+    # longitude: 120.6266316
+
+    # DivPt_1
+    # latitude: 31.4245088
+    # longitude: 120.6266182 
+
+    # # DivPt_2
+    # latitude: 31.4247723 
+    # longitude: 120.6255664 
+
+    # # DivPt_3
+    # latitude: 31.4250359 
+    # longitude: 120.6245147 
+
+    # # DivPt_4
+    # latitude: 31.4252994 
+    # longitude: 120.6234629 
+
+    #  # DivPt_5
+    # latitude: 31.4255629 
+    # longitude: 120.6224112 
+  
+    #  # DivPt_6
+    # latitude: 31.4258265 
+    # longitude: 120.6213594 
+
+    # 以下两个区域，使用overlap测试
+    # 调大 roi_distance_min 70m 这样就有20m的重叠区域
+    #    # DivPt_7
+    # latitude: 31.4260900 
+    # longitude: 120.6203076 
+
+    #  # DivPt_8
+    # latitude: 31.4263288
+    # longitude: 120.6193545
+
+    #  # test for sky
+    # latitude: 31.426000
+    # longitude: 120.619000
+ 
+    latitude: 31.42823208
+    longitude: 120.62112729
+
+  roi_distance_max: 150.0  # 最大搜索半径（米）  # 搜索范围按这个值裁剪
+
+  # 仅仅对 05_get_roi_data_for_3dgs.py 有效，
+  # 此范围内的数据全部保留
+  # 以指定的位置为中心，半径为 roi_distance_min 的矩形区域
+  roi_distance_min: 110.0  # 最小搜索半径（米）
+
+  # 介于 roi_distance_min 和 roi_distance_max 之间的数据，根据投影占比决定保留与否
+  projected_ratio_threshold: 0.2
+  file_for_3dgs_name: img_whitelist_for_3dgs.txt  # 05_get_roi_data_for_3dgs.py 输出的白名单文件路径
+
+  # UTM区号会根据经度自动计算，无需手动配置
+  limit: null      # 结果数量限制，null 表示不限制
+
+  # 会话子目录列表（相对于 source_data_path）
+  # 只搜索这些子目录下的数据；如果为空列表，则搜索所有会话
+  # 功能实现 注释掉，即：使用全部会话数据
+  use_session_subdir:
+    [
+      '20251220_1_db3',
+      '20251220_2_db3',
+      '20251220_3_db3',
+      # 'park_20251202_1',
+      # 'park_20251120_0',
+      # 'park_20251117_0',
+      # 'park_20250927_0',
+      # 'road_20251202_0',
+    ]
+  export_dir: /data/exported_roi_data/  # 导出路径
+  3dgs_dir: /data/3dgs_data_grid/  # 导出路径
+  session_name_template: "search_{lat:.6f}_{lon:.6f}_{roi_distance_min}_{roi_distance_max}m"  # 会话名称模板
+
+  maintain_structure: true   # 保持原始目录结构
+  copy_images: true          # 是否复制图像
+  copy_pointclouds: true     # 是否复制点云
+  copy_odoms: true           # 是否复制 odom 文件
+  copy_optimized_poses: true # 是否复制优化位姿
+  copy_labels: true           # 是否复制标签文件
+  copy_masks: true           # 是否复制掩码文件
+  generate_manifest: true    # 是否生成清单文件
+  skip_existing: true  # 跳过已存在的文件
+
+  # 重新命名输出路径 (04_resorted_by_time.py 使用)
+  # 不指定则使用 export_dir/session_name_template
+  resorted_out_dir: 06_get_roi_data_for_3dgs.py # 重命名输出路径
+
+
+# ===================================================================
+# 点云合并配置 (07_merge_session_data.py)
+# ===================================================================
+merge_session:
+  enable_specify_position: false  # 是否启用指定位置搜索,false 表示合并整个项目数据,上面指定的位置无效 
+  # 输入路径
+  # 上面参数为false时 session_dir 必须指定
+  session_dir: /data/dwm_data/park_20251120_0/
+  
+  # 输出路径
+  output:
+    output_dir: /data/exported_roi_data/
+    output_filename: merged_map          # 输出文件名
+    save_las: false                        # 是否同时保存LAS格式
+    las_grid_size: 200.0                 # 文件分块保存的网格大小（米）
+    save_pcd: true                       # 是否同时保存PCD格式
+    save_ply: false                       # 是否同时保存PLY格式
+ 
+  # 处理参数
+  processing:
+    remove_dynamic_only: false   # 动静态物体去除，true 表示只去除 动态物体，false 表示去除所有 3dbox 内的物体 ,label 文件必须存在
+    resample: 50        # 采样率：1表示使用所有点云，2表示每隔一个，10表示每隔10个
+    # EPSG代码会根据 search_params/default_location/longitude 自动计算，无需手动配置
+    las_precision: 0.001  # LAS文件精度（米），0.001表示1mm
+  
+  # 点云过滤（可选，未来扩展）
+  filtering:
+    enable: false
+    min_z: null         # 最小高度过滤（米）
+    max_z: null         # 最大高度过滤（米）
+    voxel_size: null    # 体素降采样大小（米）
+
+# ===================================================================
+# 源路径管理配置 (05_get_roi_data_for_3dgs.py)
+# ===================================================================
+# 复用 03_get_roi_data.py 的以下配置
+
+
+# ===================================================================
+# 源路径管理配置 (14_export_poses_to_kml.py)
+# ===================================================================
+# 复用 07_merge_session_data.py 的以下配置
+# merge_session:
+#   output:
+#     output_dir: /data/exported_roi_data/
+
+
+# ===================================================================
+# 源路径管理配置 (07_get_surround_hd_map.py)
+# ===================================================================
+# 复用 07_merge_session_data.py 的以下配置
+# merge_session:
+#   output:
+#     output_dir: /data/exported_roi_data/
+
+# 另外，新增 hd_map 配置
+# output_folder 不指定的话，则使用 merge_session/output/output_dir
+hd_map:
+  input_folder: /data/hd_map/utm51n/
+
+  # 如果不指定，则使用 07_merge_session_data.py下面的 export_dir 作为输出目录
+  # output_folder: /data/postgresql/export/hd_map/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ===================================================================
+# 源路径管理配置 (05_manage_source_paths.py)
+# ===================================================================
+source_path_management:
+  default_root: jmsroot@192.168.2.78:/data/dwm_raw_data
+  path_template: "{default_root}/{session_name}"  # 路径模板
+
+
+
+# ===================================================================
+# 日志配置
+# ===================================================================
+logging:
+  level: INFO  # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+  date_format: '%Y-%m-%d %H:%M:%S'

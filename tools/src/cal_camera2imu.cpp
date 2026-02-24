@@ -46,9 +46,9 @@ Eigen::Matrix<T, 3, 1> RotMtoEuler(const Eigen::Matrix<T, 3, 3> &rot)
         z = 0;
     }
     
-    x = x * 180.0 / M_PI;
-    y = y * 180.0 / M_PI;
-    z = z * 180.0 / M_PI;
+//     x = x * 180.0 / M_PI;
+//     y = y * 180.0 / M_PI;
+//     z = z * 180.0 / M_PI;
 
     // Normalize roll to be within [-180, 180]
     if (x > 180.0) x -= 360.0;
@@ -76,7 +76,7 @@ static Eigen::Vector3d R2ypr(const Eigen::Matrix3d &R)
      ypr(1) = p;
      ypr(2) = r;
 
-     return ypr * 180.0 / M_PI ;
+     return ypr ; //* 180.0 / M_PI ;
 }
 
 #define M_PI 3.14159265358979323846
@@ -132,18 +132,19 @@ void From_Martix()
 void From_Quaterniond()
 {
      Eigen::Vector3d p_a(0.0, 0, 0);
-     Eigen::Quaterniond q_a(0.5, -0.5, 0.5, -0.5); // 1 + 0i + 0j + 0k
+     Eigen::Quaterniond q_a(0.0023, -0.707374, -0.706831, 0.00243); // 1 + 0i + 0j + 0k
 
      Eigen::Vector3d p_b(0.017, -0.008, -0.068);
-     Eigen::Quaterniond q_b( 0.9999456 , -0.0045338, 0.0039616, 0.0085177 ); // 0.7071 + 0i + 0j + 0.7071k
+     Eigen::Quaterniond q_b( 0.7071068 , 0.7071068, 0.0, 0.0 ); // 0.7071 + 0i + 0j + 0.7071k
 
      Eigen::Vector3d p_ab = q_a.conjugate() * (p_b - p_a);
-     Eigen::Quaterniond q_ab = q_a.conjugate() * q_b;
+     // Eigen::Quaterniond q_ab = Eigen::Quaterniond( q_a.matrix() * q_b.matrix() ); // q_a.conjugate() * q_b;
+     Eigen::Quaterniond q_ab =  q_a * q_b; // q_a.conjugate() * q_b;
 
      std::cout << "Relative Pose p_ab  : " << p_ab.transpose() << std::endl;
-     std::cout << "Relative Pose q_ab: " << q_ab.coeffs().transpose().w() << std::endl;
-     std::cout << "Relative Pose q_ab: " << q_ab.coeffs().transpose() << std::endl;
-     std::cout << "Relative Pose q_ab<Martix>: " << q_ab.matrix() << std::endl;
+     std::cout << "Relative Pose q_ab w(): " << q_ab.coeffs().transpose().w() << std::endl;
+     std::cout << "Relative Pose q_ab coeffs(): " << q_ab.coeffs().transpose() << std::endl;
+     // std::cout << "Relative Pose q_ab<Martix>: " << q_ab.matrix() << std::endl;
 }
 
 
@@ -270,49 +271,81 @@ void LoadPoses(const std::string& file_path,
     std::cout << "Can't open file to read: " << file_path << std::endl;
   }
 }
+#include "Eigen/Geometry"
  
 
 int main(int argc, char **argv)
 {
-     Eigen::Quaterniond q1(0  , 0.7071068, 0.7071068, 0  );
-     std::cout << "q1: " << q1.coeffs()  << std::endl << std::endl;
-     std::cout << "q1: " << q1.inverse().coeffs()  << std::endl << std::endl;
-     std::cout << "q1: " << q1.inverse().w()  << std::endl << std::endl;
-     return 1;
+
+     double yaw = 70.2 * M_PI / 180.0;
+double pitch = -0.122 * M_PI / 180.0;
+double roll = 3.52 * M_PI / 180.0;
+     // 构造
+Eigen::Matrix3d R = (
+    Eigen::AngleAxisd(roll, Eigen::Vector3d::UnitX()) *
+    Eigen::AngleAxisd(pitch, Eigen::Vector3d::UnitY()) *
+    Eigen::AngleAxisd(yaw, Eigen::Vector3d::UnitZ())  ).toRotationMatrix();;
+
+// 提取
+Eigen::Vector3d euler = R2ypr(R);
+double yaw2 = euler[0];
+double pitch2 = euler[1];
+double roll2 = euler[2];
+     std::cout << "yaw2: " << yaw2 * 180.0 / M_PI << std::endl;
+     std::cout << "pitch2: " << pitch2 * 180.0 / M_PI << std::endl;
+     std::cout << "roll2: " << roll2 * 180.0 / M_PI << std::endl << std::endl; 
+
+
+
+     //      From_Quaterniond();
+     // return 1;
+     // Eigen::Quaterniond q1(0  , 0.7071068, 0.7071068, 0  );
+     // std::cout << "q1: " << q1.coeffs()  << std::endl << std::endl;
+     // std::cout << "q1: " << q1.inverse().coeffs()  << std::endl << std::endl;
+     // std::cout << "q1: " << q1.inverse().w()  << std::endl << std::endl;
+     // return 1;
 
      // rosrun tf static_transform_publisher  0.0 1.12  0.250  -0.7071068 -0.7071068  0  0 Vehicle  imu  100
+     // Eigen::Affine3d T_vi = Eigen::Affine3d::Identity();
+     // T_vi.translation() = Eigen::Vector3d(0.0 ,1.12, 0.250); // 1.12, 0, 0.54
+     // T_vi.rotate( Eigen::Quaterniond  ( 0 , -0.7071068, -0.7071068, 0 ) );
+     // std::cout << "T_vi: " << T_vi.matrix()  << std::endl << std::endl;
+
+     Eigen::Affine3d T_vl = Eigen::Affine3d::Identity();
+     T_vl.translation() = Eigen::Vector3d(7.5861048698425293e-01, -7.5477706268429756e-03, 2.1244907379150391e+00);
+     Eigen::Quaterniond q( 7.0573174953460693e-01, -6.3617387786507607e-03, -3.3605652861297131e-03, 7.0844250917434692e-01 );
+     T_vl.rotate(q);
+     std::cout << "T_vl: " << T_vl.matrix()  << std::endl << std::endl;
+
+
      Eigen::Affine3d T_vi = Eigen::Affine3d::Identity();
-     T_vi.translation() = Eigen::Vector3d(0.0 ,1.12, 0.250); // 1.12, 0, 0.54
-     T_vi.rotate( Eigen::Quaterniond  ( 0 , -0.7071068, -0.7071068, 0 ) );
+     T_vi.translation() = Eigen::Vector3d(-0.155, 0.0, 1.149);
+     Eigen::Quaterniond q1( 0.707107, 0.0, 0.0, -0.707107 );
+     T_vi.rotate(q1);
      std::cout << "T_vi: " << T_vi.matrix()  << std::endl << std::endl;
 
-     // Eigen::Affine3d T_il = Eigen::Affine3d::Identity();
-     // // T_il.translation() = Eigen::Vector3d(0.0696721, 1.31345 ,0.942279);
-     // T_il.translation() = Eigen::Vector3d(0.0696721 , 1.31345 - 0.44 ,0.942279 - 0.6 );
-     // Eigen::Quaterniond q( 0.015358, 0.00497872, 0.00177204, 0.999868 );
-     // T_il.rotate(q);
-     // std::cout << "T_il: " << T_il.matrix()  << std::endl << std::endl;
+ 
+     auto T_il = (T_vi.inverse() * T_vl);
+     std::cout << "T_il.linear(): " << T_il.linear()  << std::endl << std::endl;
+     Eigen::Quaterniond quat(T_il.linear());
+
+     std::cout << "----: " << T_il.matrix()  << std::endl << std::endl;
+     std::cout << "----: " << quat.coeffs()  << std::endl << std::endl;
+     std::cout << "Quaternion (w, x, y, z): " 
+              << quat.w() << ", " 
+              << quat.x() << ", " 
+              << quat.y() << ", "  
+              << quat.z() << std::endl;
+
+     // Eigen::Vector3d eu_ypr1 = RotMtoEuler(  T_il.linear().matrix() ) ;
+     Eigen::Vector3d eu_ypr2 = R2ypr(T_il.linear()) ;
+     // std::cout << "eulerAngle<R2ypr>: " << eu_ypr1.transpose()  << std::endl;
+     std::cout << "eulerAngle<R2ypr>: " << eu_ypr2.transpose()  << std::endl;
+
+     return 1;
 
 
-     // Eigen::Affine3d T_ig = Eigen::Affine3d::Identity();
-     // T_ig.translation() = Eigen::Vector3d(-0.5, 0.44 ,0.6);
-     // Eigen::Quaterniond q1( 1.0, 0.0, 0.0, 0.0 );
-     // T_ig.rotate(q1);
-     // std::cout << "T_ig: " << T_ig.matrix()  << std::endl << std::endl;
-     
-     // auto T_vl = (T_vi.inverse() * T_il);
-     // std::cout << "T_vl.linear(): " << T_vl.linear()  << std::endl << std::endl;
-     // Eigen::Quaterniond quat(T_vl.linear());
 
-     // std::cout << "----: " << T_vl.matrix()  << std::endl << std::endl;
-     // std::cout << "----: " << quat.coeffs()  << std::endl << std::endl;
-     //     std::cout << "Quaternion (w, x, y, z): " 
-     //          << quat.w() << ", " 
-     //          << quat.x() << ", " 
-     //          << quat.y() << ", " 
-     //          << quat.z() << std::endl;
-
-     // return 1;
      std::string file_path = "/mnt/nvme0n1p2/master_poses.txt";
      std::cout << "file_path: " << file_path << std::endl;
 
@@ -420,8 +453,7 @@ int main(int argc, char **argv)
      // From_Martix();
      return 1;
 
-     // From_Quaterniond();
-     // return 1;
+
      
      // read_8_extrinsics2euler();
 

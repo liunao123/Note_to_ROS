@@ -1,2 +1,13 @@
 tools/build/
 .*/*vscode
+.*/*history/
+postgresql1217.tar.gz
+
+src/.vscode/
+tools/data/
+tools/test/
+.vscode/
+.history/
+.*/slam*
+slam_ceres/*
+tools/postgre_sql/*pdf*

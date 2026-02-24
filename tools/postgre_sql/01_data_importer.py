@@ -15,6 +15,7 @@ from datetime import datetime
 import numpy as np
 from typing import Dict, List, Tuple, Optional
 import logging
+from qt.load_config import load_config
 
 # 配置日志
 logging.basicConfig(
@@ -401,6 +402,16 @@ class MappingDataImporter:
             logger.warning(f"odoms目录不存在: {odoms_dir}")
             return
         
+        # 检查该session的odom数据是否已存在
+        self.cursor.execute(
+            "SELECT COUNT(*) FROM vehicle_poses WHERE session_id = %s",
+            (session_id,)
+        )
+        existing_count = self.cursor.fetchone()[0]
+        if existing_count > 0:
+            logger.info(f"odoms数据已存在({existing_count}条)，跳过导入")
+            return
+        
         # 获取所有位姿文件并排序
         odom_files = sorted(odoms_dir.glob("*.yaml"))
         logger.info(f"找到 {len(odom_files)} 个odom位姿文件")
@@ -469,6 +480,16 @@ class MappingDataImporter:
         poses_dir = session_path / "sparse" / "vehicle_geo_pose"
         if not poses_dir.exists():
             logger.warning(f"优化位姿目录不存在: {poses_dir}")
+            return
+        
+        # 检查该session的优化位姿数据是否已存在
+        self.cursor.execute(
+            "SELECT COUNT(*) FROM optimized_poses WHERE session_id = %s",
+            (session_id,)
+        )
+        existing_count = self.cursor.fetchone()[0]
+        if existing_count > 0:
+            logger.info(f"优化位姿数据已存在({existing_count}条)，跳过导入")
             return
         
         # 获取所有位姿文件并排序
@@ -597,6 +618,16 @@ class MappingDataImporter:
             logger.warning(f"图像目录不存在: {images_dir}")
             return
         
+        # 检查该session的图像数据是否已存在
+        self.cursor.execute(
+            "SELECT COUNT(*) FROM images WHERE session_id = %s",
+            (session_id,)
+        )
+        existing_count = self.cursor.fetchone()[0]
+        if existing_count > 0:
+            logger.info(f"图像数据已存在({existing_count}条)，跳过导入")
+            return
+        
         # 遍历各个相机目录
         for cam_dir in images_dir.iterdir():
             if not cam_dir.is_dir():
@@ -669,6 +700,16 @@ class MappingDataImporter:
         pointclouds_dir = session_path / "pointclouds"
         if not pointclouds_dir.exists():
             logger.warning(f"点云目录不存在: {pointclouds_dir}")
+            return
+        
+        # 检查该session的点云数据是否已存在
+        self.cursor.execute(
+            "SELECT COUNT(*) FROM point_clouds WHERE session_id = %s",
+            (session_id,)
+        )
+        existing_count = self.cursor.fetchone()[0]
+        if existing_count > 0:
+            logger.info(f"点云数据已存在({existing_count}条)，跳过导入")
             return
         
         # 假设点云来自某个激光雷达传感器
@@ -773,6 +814,16 @@ class MappingDataImporter:
             logger.warning(f"稀疏目录不存在: {sparse_dir}")
             return
         
+        # 检查该session的子地图数据是否已存在
+        self.cursor.execute(
+            "SELECT COUNT(*) FROM submaps WHERE session_id = %s",
+            (session_id,)
+        )
+        existing_count = self.cursor.fetchone()[0]
+        if existing_count > 0:
+            logger.info(f"子地图数据已存在({existing_count}条)，跳过导入")
+            return
+        
         submap_files = sorted(sparse_dir.glob("submap_*.pcd"))
         logger.info(f"找到 {len(submap_files)} 个子地图文件")
         
@@ -814,6 +865,101 @@ class MappingDataImporter:
         self.conn.commit()
         logger.info("导入子地图完成")
     
+    def import_labels(self, session_path: Path, session_id: int, batch_size: int = 1000):
+        """
+        导入labels标注数据到labels表
+        
+        Args:
+            session_path: 会话路径
+            session_id: 会话ID
+            batch_size: 批量插入大小
+        """
+        labels_dir = session_path / "labels"
+        if not labels_dir.exists():
+            logger.info(f"labels目录不存在，跳过: {labels_dir}")
+            return
+        
+        # 检查该session的labels数据是否已存在
+        self.cursor.execute(
+            "SELECT COUNT(*) FROM labels WHERE session_id = %s",
+            (session_id,)
+        )
+        existing_count = self.cursor.fetchone()[0]
+        if existing_count > 0:
+            logger.info(f"labels数据已存在({existing_count}条)，跳过导入")
+            return
+        
+        # 获取所有标注文件并排序
+        label_files = sorted(labels_dir.glob("*.json"))
+        logger.info(f"找到 {len(label_files)} 个label文件")
+        
+        if len(label_files) == 0:
+            return
+        
+        labels_data = []
+        for label_file in label_files:
+            # 解析文件名：0_1763951779.000.json （与odoms格式相同）
+            parts = label_file.stem.split("_")
+            if len(parts) < 2:
+                logger.warning(f"标注文件名格式错误: {label_file.name}")
+                continue
+                
+            frame_id = int(parts[0])
+            timestamp_sec = int(float(parts[1]))
+            timestamp_nsec = int((float(parts[1]) - timestamp_sec) * 1e9)
+            
+            # 计算文件大小
+            file_size = label_file.stat().st_size
+            
+            # 计算相对路径
+            relative_path = f"labels/{label_file.name}"
+            
+            # 读取JSON数据（可选）
+            label_data = None
+            try:
+                with open(label_file, 'r', encoding='utf-8') as f:
+                    label_data = json.load(f)
+            except Exception as e:
+                logger.warning(f"无法读取标注文件内容 {label_file.name}: {e}")
+            
+            # 准备插入数据
+            label_row = (
+                session_id,
+                frame_id,
+                timestamp_sec,
+                timestamp_nsec,
+                label_file.name,
+                relative_path,
+                str(label_file),
+                file_size,
+                json.dumps(label_data) if label_data else None
+            )
+            labels_data.append(label_row)
+            
+            # 批量插入
+            if len(labels_data) >= batch_size:
+                self._batch_insert_labels(labels_data)
+                labels_data = []
+        
+        # 插入剩余数据
+        if labels_data:
+            self._batch_insert_labels(labels_data)
+        
+        logger.info(f"导入labels数据完成: {len(label_files)} 条")
+    
+    def _batch_insert_labels(self, labels_data: List[Tuple]):
+        """批量插入labels数据到labels表"""
+        query = """
+            INSERT INTO labels
+            (session_id, frame_id, timestamp_sec, timestamp_nsec,
+             label_name, relative_path, absolute_path, file_size_bytes, label_data)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (session_id, frame_id) DO NOTHING
+        """
+        ok = self._safe_execute_batch(query, labels_data, desc="labels")
+        if not ok:
+            logger.error("部分labels批量插入失败，已跳过该批次")
+    
     def import_full_session(self, session_path: Path, project_name: str,
                            session_name: str = None):
         """
@@ -842,12 +988,12 @@ class MappingDataImporter:
         # 3. 创建会话并检查是否为新会话
         session_id, is_new = self.import_session(session_path, project_id, session_name)
         
-        # 如果会话已存在，跳过后续导入步骤
-        if not is_new:
-            logger.info(f"会话已存在，跳过数据导入: {session_name or session_path.name}")
-            return
-        
-        logger.info(f"导入新会话数据: {session_name or session_path.name}")
+        # 无论会话是否已存在，都执行数据导入（支持增量更新）
+        # 数据库的唯一约束（ON CONFLICT DO NOTHING）会自动避免重复插入
+        if is_new:
+            logger.info(f"导入新会话数据: {session_name or session_path.name}")
+        else:
+            logger.info(f"会话已存在，执行增量数据导入: {session_name or session_path.name}")
         
         # 4. 导入标定数据
         self.import_calibrations(session_path, session_id, sensor_mapping)
@@ -867,33 +1013,10 @@ class MappingDataImporter:
         # 9. 导入子地图
         self.import_submaps(session_path, session_id)
         
-        logger.info(f"新会话导入完成: {session_path}")
-
-
-def load_config(config_file: str = None) -> dict:
-    """
-    加载配置文件
-    
-    Args:
-        config_file: 配置文件路径，默认为脚本所在目录的 config.yaml
+        # 10. 导入标注数据（labels）
+        self.import_labels(session_path, session_id)
         
-    Returns:
-        配置字典
-    """
-    if config_file is None:
-        # 默认使用脚本所在目录的 config.yaml
-        script_dir = Path(__file__).parent
-        config_file = script_dir / "config.yaml"
-    
-    config_path = Path(config_file)
-    if not config_path.exists():
-        raise FileNotFoundError(f"配置文件不存在: {config_path}")
-    
-    with open(config_path, 'r', encoding='utf-8') as f:
-        config = yaml.safe_load(f)
-    
-    logger.info(f"已加载配置文件: {config_path}")
-    return config
+        logger.info(f"新会话导入完成: {session_path}")
 
 
 def main():

@@ -1,0 +1,11 @@
+postgis-3.7.0dev.tar.gz
+postgis-3.7.0dev/
+query_submaps.sql
+export/
+data/
+# Ignore Python bytecode
+__pycache__/
+*.pyc
+qt/__pycache__/
+build/
+

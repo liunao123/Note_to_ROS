@@ -26,7 +26,9 @@ int main(int argc, char **argv)
   std::cout << "filename: " << filename << std::endl;
   double voxel_size = std::stof(argv[2]);
   std::cout << "voxel_size: " << voxel_size << std::endl;
-
+  std::string outfile = filename.substr(0, filename.size() - 4) + "_down.pcd";
+  std::cout << " data points to " << outfile << "." << std::endl;
+  // return 1;
   // 创建网格
   const double grid_size = voxel_size * 1000.0; // 10.0; // 10米
   std::cout << "grid_size: " << grid_size << std::endl;
@@ -82,7 +84,8 @@ int main(int argc, char **argv)
     }
   }
   std::cout << "Saved voxel after: " << cloud_out->size() << " data points to downsample.pcd." << std::endl;
-  pcl::io::savePCDFile("downsample.pcd", *cloud_out);
+
+  pcl::io::savePCDFile(outfile, *cloud_out);
 
   return (0);
 }

@@ -183,6 +183,14 @@ int main(int argc, char** argv) {
     std::cout << "Translation completed. Points transformed to utm coordinate system." << std::endl;
 
     // ========== 基于八叉树的自适应分块和滤波 ==========
+    // 自适应体素滤波参数：pair<距离阈值, 分辨率>，按距离升序排列，最后一个为最大距离
+    std::vector<std::pair<float, float>> adaptive_voxel_params = {
+        {0.0f, 0.025f},   // 有位姿
+        {10.0f, 0.05f},   // <10m
+        {20.0f, 0.1f},    // <20m
+        {30.0f, 0.2f},   // >=20m
+        {FLT_MAX, 0.5f}   // >=20m
+    };
     
     // 1. 计算点云边界
     pcl::PointXYZI minPt, maxPt;
@@ -271,56 +279,43 @@ int main(int argc, char** argv) {
     
     // 6. 对每个节点应用自适应体素滤波
     std::cout << "Applying adaptive voxel filtering..." << std::endl;
-    int nodes_with_pose = 0;
-    int nodes_5_10m = 0;
-    int nodes_10_20m = 0;
-    int nodes_beyond_20m = 0;
+    std::vector<int> node_count_per_param(adaptive_voxel_params.size(), 0);
     
     for (auto& pair : octree_nodes) {
         auto& node = pair.second;
-        
         if (node.cloud->points.empty())
             continue;
-            
         node.cloud->width = node.cloud->size();
         node.cloud->height = 1;
         node.cloud->is_dense = true;
-        
         float voxel_size = 0.0f;
-        
+        size_t chosen_idx = 0;
         if (node.has_pose) {
-            // 节点包含位姿：使用0.05m分辨率
-            voxel_size = 0.025f;
-            nodes_with_pose++;
-        } else if (node.min_pose_dist < 10.0f) {
-            // 距离5-10m：使用0.1m分辨率
-            voxel_size = 0.05f;
-            nodes_5_10m++;
-        } else if (node.min_pose_dist < 20.0f) {
-            // 距离10-20m：使用0.2m分辨率
-            voxel_size = 0.1f;
-            nodes_10_20m++;
+            voxel_size = adaptive_voxel_params[0].second;
+            chosen_idx = 0;
         } else {
-            // 距离超过20m：使用0.5m分辨率
-            voxel_size = 0.2f;
-            nodes_beyond_20m++;
+            for (size_t idx = 1; idx < adaptive_voxel_params.size(); ++idx) {
+                if (node.min_pose_dist < adaptive_voxel_params[idx].first) {
+                    voxel_size = adaptive_voxel_params[idx].second;
+                    chosen_idx = idx;
+                    break;
+                }
+            }
         }
-        
+        node_count_per_param[chosen_idx]++;
         // 应用体素滤波
         pcl::PointCloud<pcl::PointXYZI>::Ptr filtered_cloud(new pcl::PointCloud<pcl::PointXYZI>);
         pcl::VoxelGrid<pcl::PointXYZI> voxel_filter;
         voxel_filter.setInputCloud(node.cloud);
         voxel_filter.setLeafSize(voxel_size, voxel_size, voxel_size);
         voxel_filter.filter(*filtered_cloud);
-        
         node.cloud = filtered_cloud;
     }
     
     std::cout << "\nFiltering statistics:" << std::endl;
-    std::cout << "  Nodes with pose (0.05m): " << nodes_with_pose << std::endl;
-    std::cout << "  Nodes 5-10m from pose (0.1m): " << nodes_5_10m << std::endl;
-    std::cout << "  Nodes 10-20m from pose (0.2m): " << nodes_10_20m << std::endl;
-    std::cout << "  Nodes beyond 20m (0.5m): " << nodes_beyond_20m << std::endl;
+    for (size_t i = 0; i < adaptive_voxel_params.size(); ++i) {
+        std::cout << "  Nodes for threshold < " << adaptive_voxel_params[i].first << "m (voxel: " << adaptive_voxel_params[i].second << "m): " << node_count_per_param[i] << std::endl;
+    }
     
     // 7. 合并所有滤波后的节点点云
     std::cout << "\nMerging filtered octree nodes..." << std::endl;

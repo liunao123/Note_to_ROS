@@ -5,6 +5,7 @@
 从数据库的 vehicle_poses 表读取 GPS 坐标并生成 KML 文件，可在 Google Earth 中查看
 """
 
+import os
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import yaml
@@ -12,6 +13,7 @@ from pathlib import Path
 import argparse
 import sys
 import colorsys
+from qt.load_config import load_config
 
 
 # 预定义的颜色方案（KML格式：AABBGGRR）- 基础色板
@@ -88,31 +90,6 @@ def generate_color_for_index(index: int) -> tuple:
     color_name = f'自动色#{index+1}'
     
     return (color_code, color_name)
-
-
-def load_config(config_file: str = None) -> dict:
-    """
-    加载配置文件
-    
-    Args:
-        config_file: 配置文件路径，默认为脚本所在目录的 config.yaml
-        
-    Returns:
-        配置字典
-    """
-    if config_file is None:
-        script_dir = Path(__file__).parent
-        config_file = script_dir / "config.yaml"
-    
-    config_path = Path(config_file)
-    if not config_path.exists():
-        raise FileNotFoundError(f"配置文件不存在: {config_path}")
-    
-    with open(config_path, 'r', encoding='utf-8') as f:
-        config = yaml.safe_load(f)
-    
-    print(f"已加载配置文件: {config_path}")
-    return config
 
 
 def export_poses_to_kml(db_config: dict, output_file: str, session_id: int = None, 
@@ -325,8 +302,9 @@ def write_kml_file(filename: str, sessions: dict, session_colors: dict):
                 # 起点
                 start_pose = poses[0]
                 f.write('    <Placemark>\n')
-                f.write('      <name>起点</name>\n')
-                f.write(f'      <description>Session: {session_name}<br/>Frame: {start_pose["frame_id"]}</description>\n')
+                # 起点标签：保留“起点”并显示该轨迹对应的 session 名称
+                f.write(f'      <name>起点 - {session_name}</name>\n')
+                f.write(f'      <description>起点<br/>Session: {session_name}<br/>Frame: {start_pose["frame_id"]}</description>\n')
                 f.write('      <styleUrl>#startPointStyle</styleUrl>\n')
                 f.write('      <Point>\n')
                 f.write('        <altitudeMode>absolute</altitudeMode>\n')
@@ -355,7 +333,7 @@ def write_kml_file(filename: str, sessions: dict, session_colors: dict):
 
 def main():
     """主函数"""
-    # 加载配置
+    # 加载配置文件
     config = load_config()
     db_config = {
         'database': config['database']['name'],
@@ -407,7 +385,7 @@ def main():
     parser.add_argument(
         '-r', '--rate',
         type=int,
-        default=1,
+        default=2,
         help='采样率（默认: 1，表示所有点；10表示每10个点取1个）'
     )
     
@@ -417,14 +395,15 @@ def main():
         default=None,
         help='轨迹颜色，AABBGGRR格式（可选，不指定则自动为每个会话分配不同颜色）'
     )
-    
-    args = parser.parse_args()
-    
-    data_export = config.get('data_export', {})
-    root_dir = data_export.get('root_dir', '/mnt/nvme0n1p2/project/postgresql/export/')
 
-    args.output = root_dir + "all_session_trajectory.kml"
-    # print(args.output)
+    args = parser.parse_args()
+    merge_config = config.get('merge_session', {})
+    output_config = merge_config.get('output', {})
+    # 若输出为相对路径（且未包含目录），默认放到 config 里的 output_dir 下
+    output_dir = output_config.get('output_dir', './output')
+    if not os.path.isabs(args.output) and os.path.dirname(args.output) == "":
+        os.makedirs(output_dir, exist_ok=True)
+        args.output = os.path.join(output_dir, args.output)
 
     # 执行导出
     export_poses_to_kml(

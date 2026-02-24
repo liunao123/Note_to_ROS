@@ -111,7 +111,7 @@ int main(int argc, char** argv)
         grid_y_num = std::stoi(argv[3]);
     }
 
-    auto result = readPoseFromYaml(filename + "offset.yaml");
+    auto result = readPoseFromYaml(filename + "/sparse/vehicle_geo_pose/0_1763964284.000.yaml");
     std::cout << "first_pose_at_utm: " << first_pose_at_utm.transpose() << std::endl << std::endl;
 
     // 提取最后一个/之前的所有字符（即目录路径）
@@ -130,7 +130,8 @@ int main(int argc, char** argv)
     Eigen::Affine3d T_wl = Eigen::Affine3d::Identity();
     Eigen::Vector3d project_original_utm( 662276.0 , 4873428.0, 200.0 );
 
-    T_wl.translation() =  first_pose_at_utm - project_original_utm;
+    T_wl.translation() =  first_pose_at_utm - first_pose_at_utm;
+    // T_wl.translation() =  first_pose_at_utm - project_original_utm;
 
     Eigen::Quaterniond q1( 1.0, 0.0, 0.0, 0.0  );
     T_wl.rotate(q1);
@@ -181,7 +182,7 @@ int main(int argc, char** argv)
     std::cout << "global_map->size(): " << global_map->size() << std::endl;
     std::cout << "output_filename: " << output_filename << std::endl;
 
-    return -1;
+    // return -1;
 
     if (grid_y_num  * grid_x_num == 1 )
     {
@@ -223,7 +224,7 @@ int main(int argc, char** argv)
         if (!gridClouds[i]->points.empty()) {
             gridClouds[i]->width = gridClouds[i]->size();
             gridClouds[i]->height = 1;
-            output_filename = dir_path +"/suzhou_qcsl_0930_grid_" + std::to_string(i) + ".pcd";
+            output_filename = dir_path +"/grid_" + std::to_string(i) + ".pcd";
             pcl::io::savePCDFileBinary(output_filename, *gridClouds[i]);
             std::cout << "Saved grid " << i << " with " << gridClouds[i]->size() << " points to " << output_filename << std::endl;
         }
