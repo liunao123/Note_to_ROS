@@ -45,7 +45,7 @@ add_executable (${src_file} src/${src_file}.cpp )
 target_link_libraries (${src_file}   ${PCL_LIBRARIES} ${OpenCV_LIBS} ${GeographicLib_LIBRARIES} )
 
 
-SET(src_file get_session_data_and_sample)
+SET(src_file get_session_data_and_NonUniformSampling)
 add_executable (${src_file} src/${src_file}.cpp )
 target_link_libraries (${src_file}   ${PCL_LIBRARIES} ${OpenCV_LIBS} ${YAML_CPP_LIBRARIES})
 # yaml-cpp

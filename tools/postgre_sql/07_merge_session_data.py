@@ -16,8 +16,6 @@ import pyproj
 # 使用qt.load_config的统一配置加载
 from qt.load_config import load_config
 
-
-
 # --- 新增：点云写KML函数 ---
 def save_pointcloud_to_kml(points, first_pose, output_file, utm_zone):
     """
@@ -994,7 +992,7 @@ def main():
     print(default_project_dir)
     # return
     
-    default_project_dir="/data/dwm_data/park_20251120_0/"
+    # default_project_dir="/data/dwm_data/park_20251120_0/"
     work_dir = Path(default_project_dir) 
     print(f"输入目录 : {work_dir}")
 

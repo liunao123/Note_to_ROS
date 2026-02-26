@@ -14,7 +14,7 @@ from scipy.spatial import cKDTree
 
 
 # 定义全局offset
-offset_map = np.array([274402.850498005573 , 3479086.707035151776, 0.0])
+offset_map = np.array([0.0 , 0.0, 0.0])
 offset_map_initialized = False  # 标记offset_map是否已初始化
 
 # 导入3D box投影工具函数
@@ -26,6 +26,69 @@ from qt.box_projection import (
     lonlat_to_utm,
     # utm_to_lonlat
 )
+
+def VoxelSampl(cloud, coarse_size=5.0, fine_size=0.1):
+    """
+    对点云先用coarse_size(如5m)做八叉体素分块，再对每个cell用fine_size(如0.1m)做体素滤波，最后合并所有点。
+    Args:
+        cloud: PyntCloud对象
+        coarse_size: 八叉树体素分辨率(米)
+        fine_size: cell内体素滤波分辨率(米)
+    Returns:
+        PyntCloud对象，采样后的点云
+    """
+    import numpy as np
+    import pandas as pd
+    df = cloud.points.copy()
+    print(f"VoxelSampl: 滤波前点数: {len(df):,}")
+    # 计算coarse voxel坐标
+    voxel_idx = np.floor(df[['x','y','z']].values / coarse_size).astype(int)
+    df['coarse_voxel'] = [tuple(idx) for idx in voxel_idx]
+    sampled_points = []
+    for key, group in df.groupby('coarse_voxel'):
+        # 对每个cell再做细粒度体素滤波
+        pts = group[['x','y','z']].values
+        fine_voxel_idx = np.floor((pts - np.min(pts, axis=0)) / fine_size).astype(int)
+        # 用dict聚合每个细体素的第一个点
+        seen = {}
+        for i, idx in enumerate(map(tuple, fine_voxel_idx)):
+            if idx not in seen:
+                seen[idx] = group.iloc[i]
+        sampled_points.extend(seen.values())
+    sampled_df = pd.DataFrame(sampled_points)
+    print(f"VoxelSampl: 滤波后点数: {len(sampled_df):,}")
+    # 去掉辅助列
+    if 'coarse_voxel' in sampled_df.columns:
+        sampled_df = sampled_df.drop(columns=['coarse_voxel'])
+    return PyntCloud(sampled_df)
+
+
+def read_3dgs_camera_poses(cam_json_path, select_cam='cam1'):
+    """
+    读取3DGS训练时的cameras.json文件，返回相机位姿信息
+    Args:
+        cam_json_path: cameras.json文件路径
+    Returns:
+        cameras: 列表，每个元素为dict，包含相机的位姿等信息
+    """
+    if not os.path.exists(cam_json_path):
+        print(f"[read_3dgs_camera_poses] 文件不存在: {cam_json_path}")
+        return []
+    with open(cam_json_path, 'r') as f:
+        data = json.load(f)
+    # 兼容不同格式，常见格式有 'cameras' 或直接是列表
+    if isinstance(data, dict) and 'cameras' in data:
+        cameras = data['cameras']
+    elif isinstance(data, list):
+        cameras = data
+    else:
+        cameras = [data]
+
+    print(f"[read_3dgs_camera_poses] 读取到 {len(cameras)} 个相机位姿")
+    # 只返回img_name包含select_cam的相机
+    filtered_cameras = [cam for cam in cameras if select_cam in cam.get('img_name', '')]
+    print(f"[read_3dgs_camera_poses] 过滤后剩余 {len(filtered_cameras)} 个{select_cam}相机")
+    return filtered_cameras
 
 
 def load_ply(ply_path):
@@ -157,25 +220,27 @@ def load_pose_and_transform(pose_path):
         转换后的pose (numpy array)
     """
     
-    pose = load_lidar_pose_from_file(pose_path)["offset_utm"]
-    print("offset_utm:\n", pose)
+    translation = load_lidar_pose_from_file(pose_path)["translation"]
+    offset_utm = load_lidar_pose_from_file(pose_path)["offset_utm"]
+    # print("translation:\n", translation)
+    # print("offset_utm:\n", offset_utm)
     
     global offset_map, offset_map_initialized
     # 第一次调用时，用读取到的值初始化offset_map
     if not offset_map_initialized:
-        offset_map = np.array(pose)
+        offset_map = np.array(offset_utm)
         offset_map_initialized = True
         print("==========================")
         print("首次初始化offset_map:\n", offset_map)
         print("==========================")
     
-    print("==========================")
-    print("减去全局offset:\n", offset_map)
-    print("==========================")
+    # print("==========================")
+    # print("减去全局offset:\n", offset_map)
+    # print("==========================")
     # 减去全局offset
     offset_map_reshaped = offset_map.reshape(1, 3)
-    pose = np.array(pose) - offset_map_reshaped
-    print("转换后的pose:\n", pose)
+    pose = np.array(offset_utm) - offset_map_reshaped
+    # print("转换后的pose:\n", pose)
     return pose
 
 
@@ -327,7 +392,7 @@ def merge_ply_strategy_simple(cloud1, cloud2):
     
     return PyntCloud(merged_df)
 
-def merge_ply(cloud_list, threshold=0.025, use_best_of_both=False):
+def merge_ply(cloud_list, threshold=0.025, use_best_of_both=False, interval=1):
     """
     合并多个PyntCloud对象
     Args:
@@ -347,63 +412,40 @@ def merge_ply(cloud_list, threshold=0.025, use_best_of_both=False):
     if use_best_of_both:
         # 使用择优融合策略
         print(f"合并 {len(cloud_list)} 个点云，使用择优融合策略...")
-        
-        # 将第一个点云转换为字典格式
+        # ...existing code...
         df1 = cloud_list[0].points
         merged_data = {col: df1[col].values for col in df1.columns}
-        
-        # 获取属性列表（用于strategy_best_of_both）
         class PropMock:
             def __init__(self, name):
                 self.name = name
         props = [PropMock(col) for col in df1.columns]
-        
-        # 逐个融合后续的点云
         for i in range(1, len(cloud_list)):
             print(f"\n正在融合第 {i+1}/{len(cloud_list)} 个点云...")
             df2 = cloud_list[i].points
             data2 = {col: df2[col].values for col in df2.columns}
-            
-            # 使用择优融合策略
             merged_data = strategy_best_of_both(merged_data, data2, props, threshold=threshold)
-        
-        # 将字典转换回DataFrame
         merged_df = pd.DataFrame(merged_data)
         merged_cloud = PyntCloud(merged_df)
-        
         print(f"\n✅ 合并完成，最终点数: {len(merged_df):,}")
     else:
         # 使用简单拼接策略
         print(f"合并 {len(cloud_list)} 个点云，使用简单拼接策略...")
         df_list = [cloud.points for cloud in cloud_list]
         merged_df = df_list[0]
-        
         for i in range(1, len(df_list)):
             merged_df = merged_df.append(df_list[i], ignore_index=True)
-        
         merged_cloud = PyntCloud(merged_df)
         print(f"合并完成，总点数: {len(merged_df):,}")
-    
+
+    # interval采样逻辑统一放到最后
+    # interval = 5 # 可调整采样间隔
+    print(f"   interval参数: {interval}")
+    if interval is not None and interval > 1:
+        sampled_df = merged_cloud.points.iloc[::interval].reset_index(drop=True)
+        merged_cloud = PyntCloud(sampled_df)
+        print(f"采样后点数: {len(sampled_df):,}")
+
     return merged_cloud
-
-
-def merge_two_ply(ply_path1, ply_path2, output_ply_path):
-    """
-    合并两个PLY点云文件并保存
-    Args:
-        ply_path1: 第一个PLY文件路径
-        ply_path2: 第二个PLY文件路径
-        output_ply_path: 输出合并后的PLY文件路径
-    """
-    print(f"合并点云:\n  {ply_path1}\n  {ply_path2}\n到\n  {output_ply_path}")
-    cloud1 = PyntCloud.from_file(ply_path1)
-    cloud2 = PyntCloud.from_file(ply_path2)
-    df1 = cloud1.points
-    df2 = cloud2.points
-    merged_df = df1.append(df2, ignore_index=True)
-    merged_cloud = PyntCloud(merged_df)
-    merged_cloud.to_file(output_ply_path)
-    print(f"合并后点云已保存: {output_ply_path}, 点数: {len(merged_df)}")
 
 
 def gs_ply_to_world(ply_path, pose_path, output_ply_path):
@@ -449,55 +491,65 @@ def sky_cloud_is_big_enough(cloud, sky_cloud):
     # 判断输入类型并获取DataFrame
     df_cloud = cloud.points if isinstance(cloud, PyntCloud) else cloud
     df_sky = sky_cloud.points if isinstance(sky_cloud, PyntCloud) else sky_cloud
-    
-    # 计算cloud的外接box
-    cloud_x_range = df_cloud['x'].max() - df_cloud['x'].min()
-    cloud_y_range = df_cloud['y'].max() - df_cloud['y'].min()
-    cloud_z_max = df_cloud['z'].max()
-    
-    # 计算sky_cloud的外接box (只考虑Z>0的部分)
-    sky_positive_z = df_sky[df_sky['z'] > 0]
-    if len(sky_positive_z) == 0:
-        print("⚠️ 警告: sky_cloud中没有Z>0的点，直接合并")
-        return merge_ply_strategy_simple(cloud, sky_cloud)
-    
-    sky_x_range = sky_positive_z['x'].max() - sky_positive_z['x'].min()
-    sky_y_range = sky_positive_z['y'].max() - sky_positive_z['y'].min()
-    sky_z_max = sky_positive_z['z'].max()
-    
-    print(f"  Cloud外接box范围: X={cloud_x_range:.2f}m, Y={cloud_y_range:.2f}m, Z_max={cloud_z_max:.2f}m")
-    print(f"  Sky外接box范围: X={sky_x_range:.2f}m, Y={sky_y_range:.2f}m, Z_max={sky_z_max:.2f}m")
-    
-    # 计算需要的扩大比例（取XYZ三个方向的最大比例）
-    scale_x = cloud_x_range / sky_x_range if sky_x_range < cloud_x_range else 1.0
-    scale_y = cloud_y_range / sky_y_range if sky_y_range < cloud_y_range else 1.0
-    scale_z = cloud_z_max / sky_z_max if sky_z_max < cloud_z_max else 1.0
-    
-    # 取最大比例，并留出一些余量（1.2倍）
+
+    # 1. 获取cloud的平面中心点
+    center_x = (df_cloud['x'].max() + df_cloud['x'].min()) / 2
+    center_y = (df_cloud['y'].max() + df_cloud['y'].min()) / 2
+
+    # 将 cloud的Z轴最低点 后面与 sky_cloud的Z轴最低点对齐， 这样sky就尽可能远离cloud
+    center_z = df_cloud['z'].min()
+    center = np.array([center_x, center_y, center_z])
+    print(f"  Cloud中心点: {center}")
+
+    # 2. 将sky_cloud的原点平移到cloud的中心点
+    df_sky_shifted = df_sky.copy()
+    # 计算 sky_cloud 原点（用全部点的中心）
+    # sky_center_x = (df_sky['x'].max() + df_sky['x'].min()) / 2
+    # sky_center_y = (df_sky['y'].max() + df_sky['y'].min()) / 2
+    # sky_center_z = (df_sky['z'].max() + df_sky['z'].min()) / 2
+    # sky_center = np.array([sky_center_x, sky_center_y, sky_center_z])
+    # 本来原点就在(0,0,0) 不用计算
+    sky_center = np.array([0, 0, 0])
+    print(f"  SkyCloud原点: {sky_center}")
+
+    shift = center - sky_center
+    print(f"  平移向量: {shift}")
+    df_sky_shifted[['x', 'y', 'z']] = df_sky_shifted[['x', 'y', 'z']] + shift
+
+    # 3. 判断sky_cloud是否完全包含cloud（只考虑Z>0的sky_cloud）
+    shifted_sky_positive_z = df_sky_shifted[df_sky_shifted['z'] > -1000]
+    sky_x_min, sky_x_max = shifted_sky_positive_z['x'].min(), shifted_sky_positive_z['x'].max()
+    sky_y_min, sky_y_max = shifted_sky_positive_z['y'].min(), shifted_sky_positive_z['y'].max()
+    sky_z_min, sky_z_max = shifted_sky_positive_z['z'].min(), shifted_sky_positive_z['z'].max()
+
+    cloud_x_min, cloud_x_max = df_cloud['x'].min(), df_cloud['x'].max()
+    cloud_y_min, cloud_y_max = df_cloud['y'].min(), df_cloud['y'].max()
+    cloud_z_min, cloud_z_max = df_cloud['z'].min(), df_cloud['z'].max()
+
+    print(f"  Cloud外接box: X=[{cloud_x_min:.2f},{cloud_x_max:.2f}], Y=[{cloud_y_min:.2f},{cloud_y_max:.2f}], Z=[{cloud_z_min:.2f},{cloud_z_max:.2f}]")
+    print(f"  Sky外接box: X=[{sky_x_min:.2f},{sky_x_max:.2f}], Y=[{sky_y_min:.2f},{sky_y_max:.2f}], Z=[{sky_z_min:.2f},{sky_z_max:.2f}]")
+
+    # 4. 如果sky_cloud不包含cloud，则扩大sky_cloud（只对Z>0的点）
+    scale_x = (cloud_x_max - cloud_x_min) / (sky_x_max - sky_x_min) if (sky_x_max - sky_x_min) < (cloud_x_max - cloud_x_min) else 1.0
+    scale_y = (cloud_y_max - cloud_y_min) / (sky_y_max - sky_y_min) if (sky_y_max - sky_y_min) < (cloud_y_max - cloud_y_min) else 1.0
+    scale_z = (cloud_z_max - cloud_z_min) / (sky_z_max - sky_z_min) if (sky_z_max - sky_z_min) < (cloud_z_max - cloud_z_min) else 1.0
     scale_factor = max(scale_x, scale_y, scale_z)
-    
     print(f"  XYZ比例: X={scale_x:.2f}, Y={scale_y:.2f}, Z={scale_z:.2f}")
     print(f"  最终扩大比例: {scale_factor:.2f}")
-    
-    # 复制sky_cloud的DataFrame
-    df_sky_scaled = df_sky.copy()
-    
-    # 只对Z>0的点进行扩大
+
     if scale_factor > 1.0:
         print(f"  🔧 需要扩大天空点云...")
-        mask_positive_z = df_sky_scaled['z'] > 0
-        
-        # 只扩大xyz坐标，其他属性保持不变
-        df_sky_scaled.loc[mask_positive_z, 'x'] *= scale_factor
-        df_sky_scaled.loc[mask_positive_z, 'y'] *= scale_factor
-        df_sky_scaled.loc[mask_positive_z, 'z'] *= scale_factor
-        
+        mask_positive_z = df_sky_shifted['z'] > 0
+        # 以cloud中心为缩放中心
+        df_sky_shifted.loc[mask_positive_z, ['x', 'y', 'z']] = (
+            (df_sky_shifted.loc[mask_positive_z, ['x', 'y', 'z']] - center) * scale_factor + center
+        )
         scaled_count = mask_positive_z.sum()
-        print(f"  ✅ 已扩大 {scaled_count:,} 个天空点（Z>0）")
+        print(f"  ✅ 已扩大 {scaled_count:,} 个天空点 Z>0 ")
     else:
         print(f"  ✅ 天空点云已足够大，无需扩大")
 
-    return PyntCloud(df_sky_scaled)
+    return PyntCloud(df_sky_shifted)
 
 
 def load_ply_gs(path):
@@ -515,15 +567,22 @@ def load_ply_gs(path):
     zero_matrix = np.zeros_like(positions)
     return BasicPointCloud(points=positions, colors=colors, normals=zero_matrix)
 
+# 提取时间戳，按时间戳排序后重新分配id
+def extract_timestamp(img_name):
+    # 例：0_1766199762.900_cam5.jpg
+    parts = img_name.split('_')
+    if len(parts) >= 3:
+        return float(parts[1])
+    return 0.0
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Crop PLY point cloud by XY range")
     # parser.add_argument("--input_ply", type=str, required=True, help="Input PLY file path")
     # parser.add_argument("--output_ply", type=str, required=True, help="Output cropped PLY file path")
-    parser.add_argument("--x_min", type=float, default=-70, help="Minimum X value")
-    parser.add_argument("--x_max", type=float, default=70, help="Maximum X value")
-    parser.add_argument("--y_min", type=float, default=-70, help="Minimum Y value")
-    parser.add_argument("--y_max", type=float, default=70, help="Maximum Y value")
+    parser.add_argument("--x_min", type=float, default=-55, help="Minimum X value")
+    parser.add_argument("--x_max", type=float, default=55, help="Maximum X value")
+    parser.add_argument("--y_min", type=float, default=-55, help="Minimum Y value")
+    parser.add_argument("--y_max", type=float, default=55, help="Maximum Y value")
     parser.add_argument("--use_best_merge", action='store_true', help="使用择优融合策略（默认使用简单拼接）")
     parser.add_argument("--merge_threshold", type=float, default=0.02, help="择优融合的空间距离阈值")
     args = parser.parse_args()
@@ -532,84 +591,135 @@ if __name__ == "__main__":
 
     ply_sky = "/data/3dgs_data/model.ply"
 
-    # load_ply_gs(ply_sky)
-
     sky_cloud = load_ply(ply_sky)
 
-    # temp_file  = '/data/point_cloud.ply'
-    # cloud = load_ply(temp_file)
-    # cloud = crop_points_by_dis(cloud)
-    # save_ply(cloud.points, "/data/point_cloud1.ply")
-
-    # sky_cloud = sky_cloud_is_big_enough( cloud, sky_cloud )
-    # merged_cloud_with_sky = merge_ply_strategy_simple( cloud, sky_cloud )
-
-    # save_ply(merged_cloud_with_sky.points, "/data/3dgs_data/search_31.426000_120.619000_70.0_100.0m_resorted/3dgs_bg/point_cloud/iteration_599993/point_cloudnn.ply")
-
-    # exit(0)
-
+    # 自动获取所有分块session目录
     data_list = get_all_session_dirs(gs_dir)
+
+    # 10-0 - 12-3 的4个session，位置比较接近 
     # data_list =[
-    #     '/data/3dgs_data/search_31.426000_120.619000_70.0_100.0m_resorted', 
-    #     '/data/3dgs_data/search_31.426090_120.620308_70.0_100.0m_resorted',
-    #     '/data/3dgs_data/search_31.425826_120.621359_50.0_100.0m_resorted', 
-    #     '/data/3dgs_data/search_31.426329_120.619355_70.0_100.0m_resorted' 
+    #     # '/data/3dgs_data_grid/search_31.428075_120.625335_50.0_70.0m_resorted/',
+    #     '/data/3dgs_data_grid/search_31.425801_120.626444_50.0_70.0m_resorted/', 
+    #     '/data/3dgs_data_grid/search_31.424902_120.626466_50.0_70.0m_resorted/',
+    #     '/data/3dgs_data_grid/search_31.426709_120.626421_50.0_70.0m_resorted/',
+    #     '/data/3dgs_data_grid/search_31.427538_120.626400_50.0_70.0m_resorted/'
+    #     # '/data/3dgs_data_grid/search_31.427396_120.627455_50.0_70.0m_resorted/'
+    #     ]
+    # 12-0 - 12-2的3个session，位置比较接近 
+    # data_list =[
+    #     '/data/3dgs_data_grid/search_31.425916_120.631746_54.0_74.0m_resorted/',
+    #     '/data/3dgs_data_grid/search_31.425368_120.631760_54.0_74.0m_resorted/',
+    #     '/data/3dgs_data_grid/search_31.424458_120.631783_54.0_74.0m_resorted/',
+    #     '/data/3dgs_data_grid/search_31.423555_120.631805_54.0_74.0m_resorted/',
+    #     '/data/3dgs_data_grid/search_31.423275_120.630714_50.0_70.0m_resorted/'
     #     ]
 
     print("找到3DGS数据会话目录:")
     cloud_list = []
-    cnt = 0
-    for one_work_dir in data_list:
+    all_cameras = []
+    session_names = []
+    for idx, one_work_dir in enumerate(data_list):
         if not ('_resorted' in one_work_dir):
             continue
         print(f"处理目录: {one_work_dir}")
-        # continue
-        # if cnt >= 9:
-        #     break
-        # cnt += 1
-
-        # out_3dgs_ply = one_work_dir + "/3dgs_bg/point_cloud/iteration_9993/point_cloud.ply"
-        out_3dgs_ply = one_work_dir + "/3dgs/point_cloud/iteration_599993/point_cloud.ply"
+        session_names.append(os.path.basename(one_work_dir))
+        out_3dgs_ply = os.path.join(one_work_dir, "3dgs/point_cloud/iteration_599993/point_cloud.ply")
+        cam_3dgs_json = os.path.join(one_work_dir, "3dgs/cameras.json")
         if not os.path.exists(out_3dgs_ply):
             print(f"Warning: {out_3dgs_ply} does not exist, skipping.")
             continue
-        # continue
-
         pose_file = get_first_yaml_from_vehicle_pose(one_work_dir)
+        pose = load_pose_and_transform(pose_file)
+        # 点云转换到world坐标系
         cloud = load_ply(out_3dgs_ply)
 
         cloud = crop_points_by_xy(cloud, args.x_min, args.x_max, args.y_min, args.y_max)
 
-        pose = load_pose_and_transform(pose_file)
-
         world_cloud = gs_ply_to_world_temp(cloud, pose)
-        
         cloud_list.append(world_cloud)
-
+        
         # 保存world_cloud到文件
-        session_name = os.path.basename(one_work_dir)
-        world_output_path = f"/data/exported_roi_data/temp/map_{session_name}.ply"
+        # session_name = os.path.basename(one_work_dir)
+        world_output_path = f"/data/exported_roi_data/temp/map_{idx}.ply"
         save_ply(world_cloud.points, world_output_path)
 
+        # 相机轨迹转换
+        # 保留哪一个相机的位姿，cam1、cam5等，
+        # 默认cam5 是往前看的，cam1是往后看的，其他cam2/3/4是左右的，可以根据需要选择
+        cameras = read_3dgs_camera_poses(cam_3dgs_json, select_cam='cam5')
+        for idy, cam in enumerate(cameras):
+            # if idy == 0:
+            #     print(f"原始第一个相机位姿:\n{cam}")
+            # if idy % 1:
+            #     continue
+
+            if 'position' in cam:
+                pos = cam['position']
+                pos_aligned = np.array(pos)
+                x = pos_aligned[0] + pose[0][0]
+                y = pos_aligned[1] + pose[0][1]
+                z = pos_aligned[2] + pose[0][2]
+                aligned = [x, y, z]
+                cam['position'] = aligned
+            all_cameras.append(cam)
+    # 合并所有点云
+    print(f"DONE\n{len(all_cameras)} 个相机 ...")
     print(f"DONE\n{len(cloud_list)} 个点云已转换到world坐标系，开始合并...")
-    # exit(0)
 
-    # 合并所有点云并保存
-
-    # 保存没有天空的结果
     args.use_best_merge = True
-    merged_cloud = merge_ply(cloud_list, threshold=args.merge_threshold, use_best_of_both=args.use_best_merge)
+    # args.use_best_merge = False
+    args.interval = 100
+    merged_cloud = merge_ply(cloud_list, threshold=args.merge_threshold, use_best_of_both=args.use_best_merge, interval=args.interval)
+    # 体素采样
+    # merged_cloud = VoxelSampl(merged_cloud, coarse_size=10.0, fine_size=0.01)
+
+
+    # 保存合并后的点云
+    output_root = "/data/3dgs_merged_result/"
+    os.makedirs(output_root, exist_ok=True)
+    output_ply_path = os.path.join(output_root, "point_cloud/iteration_599993/point_cloud.ply")
+    os.makedirs(os.path.dirname(output_ply_path), exist_ok=True)
     if merged_cloud is not None:
-        # output_path_sky = "/data/merged_3dgs_map_no_sky.ply"
-        # save_ply(merged_cloud.points, output_path_sky)
         # 保存 有天空的结果
         sky_cloud = sky_cloud_is_big_enough( merged_cloud, sky_cloud )
         merged_cloud_with_sky = merge_ply_strategy_simple( merged_cloud, sky_cloud )
-        output_path_sky = "/data/merged_3dgs_map_with_sky.ply"
-        save_ply(merged_cloud_with_sky.points, output_path_sky)
+        save_ply(merged_cloud_with_sky.points, output_ply_path)
     else:
         print("Error: merged_cloud is None, skipping save for no-sky version")
- 
-    print("DONE\n")
 
-    exit(0)
+    # 先提取时间戳
+    for cam in all_cameras:
+        cam['timestamp'] = extract_timestamp(cam.get('img_name', ''))
+    # 按时间戳排序
+    all_cameras.sort(key=lambda x: x['timestamp'])
+    # 重新分配id
+    for idx, cam in enumerate(all_cameras):
+        cam['id'] = idx
+        del cam['timestamp']
+    merged_json_path = os.path.join(output_root, "cameras.json")
+
+    with open(merged_json_path, "w", encoding="utf-8") as f:
+        json.dump(all_cameras, f, ensure_ascii=False, indent=2)
+    
+    print(f"已保存所有处理后的cameras到 {merged_json_path}")
+
+    # 可视化所有相机位置
+    import matplotlib.pyplot as plt
+    positions = [cam['position'] for cam in all_cameras if 'position' in cam]
+    positions = np.array(positions)
+    fig = plt.figure(figsize=(8, 6))
+    ax = fig.add_subplot(1, 1, 1)
+    ax.scatter(positions[:,0], positions[:,1], c='b', marker='o')
+    ax.set_xlabel('X')
+    ax.set_ylabel('Y')
+    ax.set_title('Camera Positions Top-Down View')
+    ax.axis('equal')
+    ax.grid(True)
+    out_img = os.path.join(output_root, "camera_positions_topdown.png")
+    fig.tight_layout()
+    fig.savefig(out_img)
+    plt.close(fig)
+    print(f"已保存相机可视化图片到 {out_img}")
+    # 拷贝其它可视化所需文件（如config、模型等）
+    # 可根据实际需求补充
+    print("DONE\n")
