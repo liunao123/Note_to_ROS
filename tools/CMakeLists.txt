@@ -39,6 +39,12 @@ target_link_libraries(select_point_with_range
     Eigen3::Eigen
 )
 
+# PCD Octree Range Query: 读取PCD文件，构建5m分辨率八叉树，按位置范围提取点
+add_executable(pcd_octree_range_query src/pcd_octree_range_query.cpp)
+target_link_libraries(pcd_octree_range_query
+    ${PCL_LIBRARIES}
+)
+
 
 SET(src_file grid_pts_squre)
 add_executable (${src_file} src/${src_file}.cpp )

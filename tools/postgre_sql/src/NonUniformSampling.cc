@@ -155,6 +155,7 @@ void NonUniformSampling::RunNonUniformSampling() {
   // 4. 八叉树非均匀采样
   std::vector<std::pair<float, float>> thresholds = {
       {5.f, 0.05f}, {10.f, 0.1f}, {20.f, 0.2f},
+      // {5.f, 0.06f}, {10.f, 0.12f}, {20.f, 0.25f},
       {40.f, 0.4f}, {80.f, 0.8f},  {500.f, 1.6f}};
   std::cout << hdmapPointsVec.size() << std::endl;
   pcl::PointCloud<pcl::PointXYZRGB>::Ptr new_cloud =
@@ -164,6 +165,7 @@ void NonUniformSampling::RunNonUniformSampling() {
   std::cout << "save to file: "
             << m_outputPath / "gs_init.ply" << std::endl;
   pcl::io::savePLYFileBinary(m_outputPath / "gs_init.ply", *new_cloud);
+  pcl::io::savePCDFileBinary(m_outputPath / "gs_init.pcd", *new_cloud);
 
   // 利用BoxFilter，只保留XY绝对值都在100以内的点
   pcl::CropBox<pcl::PointXYZRGB> box_filter;
@@ -175,6 +177,7 @@ void NonUniformSampling::RunNonUniformSampling() {
   box_filter.filter(*cropped_cloud);
   std::cout << "save cropped file: " << (m_outputPath / "gs_init_cropped_100m.ply") << std::endl;
   pcl::io::savePLYFileBinary(m_outputPath / "gs_init_cropped_100m.ply", *cropped_cloud);
+  pcl::io::savePCDFileBinary(m_outputPath / "gs_init_cropped_100m.pcd", *cropped_cloud);
 }
 
 void NonUniformSampling::LoadDataIndex() {
@@ -372,15 +375,48 @@ NonUniformSampling::GetLidarFrame(size_t idx) {
 
   pcl::PointCloud<pcl::PointXYZI>::Ptr filteredCloud(new pcl::PointCloud<pcl::PointXYZI>());
   crop_box_filter.filter(*filteredCloud);
+  // return filteredCloud;
+  // pcl::io::savePCDFileBinary("/data/exported_roi_data/temp/1.pcd", *filteredCloud);
   
-  range_xy = 50.0f;
-  crop_box_filter.setMin(Eigen::Vector4f(-range_xy, -range_xy, -5.0, 1.0));
-  crop_box_filter.setMax(Eigen::Vector4f(range_xy, range_xy, 50.0, 1.0));
-  crop_box_filter.setNegative(false); // 只保留范围 内 的点
-  crop_box_filter.setInputCloud(filteredCloud);
-  pcl::PointCloud<pcl::PointXYZI>::Ptr filteredCloud_2(new pcl::PointCloud<pcl::PointXYZI>());
-  crop_box_filter.filter(*filteredCloud_2);
-  return filteredCloud_2;
+    pcl::PointCloud<pcl::PointXYZI>::Ptr outCloud(new pcl::PointCloud<pcl::PointXYZI>());
+    crop_box_filter.setMin(Eigen::Vector4f(-10.0, -200.0, -20.0, 1.0));
+    crop_box_filter.setMax(Eigen::Vector4f(10.0, 200.0, 20.0, 1.0));
+    crop_box_filter.setInputCloud(filteredCloud);
+    crop_box_filter.filter(*outCloud);
+    
+    crop_box_filter.setNegative(false); // 只保留范围内的点
+    crop_box_filter.filter(*filteredCloud);
+    // pcl::io::savePCDFileBinary("/data/exported_roi_data/temp/1.pcd", *filteredCloud);
+
+    if (1)
+    {
+      std::cout << "Node | Points Before: " << filteredCloud->size() << std::endl;
+      const int mean_k = 15;
+      const double stddev_mul_thresh = 2.0;
+      pcl::StatisticalOutlierRemoval<pcl::PointXYZI> sor;
+      sor.setInputCloud(filteredCloud);
+      sor.setMeanK(mean_k);
+      sor.setStddevMulThresh(stddev_mul_thresh);
+      sor.filter(*filteredCloud);
+      std::cout << "Node | Points After SOR: " << filteredCloud->size() << std::endl;
+      // pcl::io::savePCDFileBinary("/data/exported_roi_data/temp/11.pcd", *filteredCloud);
+      
+      // ror.setInputCloud(filtered);
+      // ror.filter(*filtered);
+      // std::cout << "Node | Points After 2  : " << filtered->size() << std::endl;
+    }
+    *filteredCloud += *outCloud;
+    // pcl::io::savePCDFileBinary("/data/exported_roi_data/temp/2.pcd", *filteredCloud);
+
+  return filteredCloud;
+  // range_xy = 50.0f;
+  // crop_box_filter.setMin(Eigen::Vector4f(-range_xy, -range_xy, -5.0, 1.0));
+  // crop_box_filter.setMax(Eigen::Vector4f(range_xy, range_xy, 50.0, 1.0));
+  // crop_box_filter.setNegative(false); // 只保留范围 内 的点
+  // crop_box_filter.setInputCloud(filteredCloud);
+  // pcl::PointCloud<pcl::PointXYZI>::Ptr filteredCloud_2(new pcl::PointCloud<pcl::PointXYZI>());
+  // crop_box_filter.filter(*filteredCloud_2);
+  // return filteredCloud_2;
 }
 
 void NonUniformSampling::RgbExtract(
@@ -438,7 +474,7 @@ void NonUniformSampling::RgbExtract(
     }
 
     // std::cout << "  点云移除动态物体后剩余点数: " << cloud_in->size() << std::endl;
-    // pcl::io::savePCDFileBinary("/data/exported_roi_data/temp/2.pcd", *cloud_in);
+    // pcl::io::savePCDFileBinary("/data/exported_roi_data/temp/3.pcd", *cloud_in);
   }
 
   for (const auto &[camera_id, img] : images) {
@@ -938,7 +974,7 @@ bool NonUniformSampling::IsPointInBox(
   Eigen::Vector4f local = inv * pt_h;
   float hx = (0.4 + box.geometry.size.x) * 0.5f;
   float hy = (0.4 + box.geometry.size.y) * 0.5f;
-  float hz = box.geometry.size.z * 0.5f;
+  float hz = (0.0 + box.geometry.size.z) * 0.5f;
   return (local.x() >= -hx && local.x() <= hx &&
           local.y() >= -hy && local.y() <= hy &&
           local.z() >= -hz && local.z() <= hz);

@@ -20,15 +20,10 @@
 #include <filesystem>
 #include <ctime>
 #include <chrono>
+#include <sstream>
+#include <iomanip>
 
 #include "file_utils.hpp"
-
-struct PoseData
-{
-    double timestamp;
-    Eigen::Affine3d transformation_matrix;
-    Eigen::Vector3d offset_utm;
-};
 
 bool init_flag = false;
 double OFFSET_X = 0.0;
@@ -37,40 +32,12 @@ double OFFSET_Z = 0.0;
 
 
 
-inline void writeOffsetFile(double offset_x, double offset_y, double offset_z, const std::string& file_path)
+struct PoseData
 {
-    YAML::Node root;
-    root["offset_x"] = offset_x;
-    root["offset_y"] = offset_y;
-    root["offset_z"] = offset_z;
-
-    std::ofstream fout(file_path);
-    if (!fout) {
-        std::cerr << "Error opening file for writing: " << file_path << std::endl;
-        return;
-    }
-    fout << root;
-    fout.close();
-}
-
-
-template <typename PointT>
-inline void writePly(const pcl::PointCloud<PointT> &cloud, const std::string &output_ply)
-{
-    if (pcl::io::savePLYFile(output_ply, cloud) == -1)
-    {
-        std::cerr << "Could not save PLY file: " << output_ply << std::endl;
-    }
-}
-
-template <typename PointT>
-inline void writePcd(const pcl::PointCloud<PointT> &cloud, const std::string &output_pcd)
-{
-    if (pcl::io::savePCDFile(output_pcd, cloud) == -1)
-    {
-        std::cerr << "Could not save PCD file: " << output_pcd << std::endl;
-    }
-}
+    double timestamp;
+    Eigen::Affine3d transformation_matrix;
+    Eigen::Vector3d offset_utm;
+};
 
 inline PoseData readPoseFromYaml(const std::string &yaml_file)
 {
@@ -127,6 +94,88 @@ inline PoseData readPoseFromYaml(const std::string &yaml_file)
 
     return pose_data;
 }
+
+inline bool writePoseToYaml(const PoseData &pose, const std::string &yaml_file)
+{
+    try
+    {
+        YAML::Node root;
+        const double timestamp_3dp = std::round(pose.timestamp * 1000.0) / 1000.0;
+        std::ostringstream ts_stream;
+        ts_stream << std::fixed << std::setprecision(3) << timestamp_3dp;
+        root["timestamp"] = ts_stream.str();
+
+        Eigen::Matrix4d matrix = pose.transformation_matrix.matrix();
+        YAML::Node pose_utm;
+        for (int i = 0; i < 16; ++i)
+        {
+            int row = i / 4;
+            int col = i % 4;
+            pose_utm.push_back(static_cast<long double>(matrix(row, col)));
+        }
+        root["pose_utm"] = pose_utm;
+
+        YAML::Node offset_utm;
+        offset_utm.push_back(static_cast<long double>(pose.offset_utm(0)));
+        offset_utm.push_back(static_cast<long double>(pose.offset_utm(1)));
+        offset_utm.push_back(static_cast<long double>(pose.offset_utm(2)));
+        root["offset_utm"] = offset_utm;
+
+        std::ofstream fout(yaml_file);
+        if (!fout)
+        {
+            std::cerr << "Error opening YAML file for writing: " << yaml_file << std::endl;
+            return false;
+        }
+
+        fout << root;
+        fout.close();
+        return true;
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Error writing YAML file " << yaml_file << ": " << e.what() << std::endl;
+        return false;
+    }
+}
+
+
+
+inline void writeOffsetFile(double offset_x, double offset_y, double offset_z, const std::string& file_path)
+{
+    YAML::Node root;
+    root["offset_x"] = offset_x;
+    root["offset_y"] = offset_y;
+    root["offset_z"] = offset_z;
+
+    std::ofstream fout(file_path);
+    if (!fout) {
+        std::cerr << "Error opening file for writing: " << file_path << std::endl;
+        return;
+    }
+    fout << root;
+    fout.close();
+}
+
+
+template <typename PointT>
+inline void writePly(const pcl::PointCloud<PointT> &cloud, const std::string &output_ply)
+{
+    if (pcl::io::savePLYFile(output_ply, cloud) == -1)
+    {
+        std::cerr << "Could not save PLY file: " << output_ply << std::endl;
+    }
+}
+
+template <typename PointT>
+inline void writePcd(const pcl::PointCloud<PointT> &cloud, const std::string &output_pcd)
+{
+    if (pcl::io::savePCDFile(output_pcd, cloud) == -1)
+    {
+        std::cerr << "Could not save PCD file: " << output_pcd << std::endl;
+    }
+}
+
 
 inline pcl::PointCloud<pcl::PointXYZI>::Ptr loadCorrespondingPointCloud(const std::string &pose_file_path,
                                                                  const std::vector<std::string> &all_pcd_files)

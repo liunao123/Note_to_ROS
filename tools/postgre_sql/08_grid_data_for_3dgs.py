@@ -106,6 +106,41 @@ class PointCloudGridDivider:
         self.output_dir = dir
 
     # ! 导出所有grid的中心点经纬度和大小到KML文件，矩形Polygon表示grid范围
+    def export_batch_sh_for_3dgs(self, sh_path):
+        """
+        根据all_grids生成批量shell命令 写入sh_path文件。
+        每个grid生成三行命令 lat/lon取中心点 roi_min/roi_max取x_size和y_size的较小/较大值。
+        lat/lon保留6位小数，roi_min/roi_max保留1位小数。
+        name按模板生成: search_{lat:.6f}_{lon:.6f}_{roi_distance_min}_{roi_distance_max}m
+        """
+        session_name_template = "search_{lat:.6f}_{lon:.6f}_{roi_distance_min}_{roi_distance_max}m"
+        with open(sh_path, 'w', encoding='utf-8') as f:
+            f.write('#!/bin/bash \n')
+            f.write('########################################################## \n')
+            f.write(f"# move this file to geo-database-engine path . then run ...... \n")
+            f.write('########################################################## \n\n\n')
+            for grid in self.all_grids:
+                i, j, grid_size, lat, lon, x_size, y_size = grid
+                roi_min = max(x_size, y_size) / 2.0
+                roi_max = roi_min * 1.5
+                lat_str = f"{lat:.6f}"
+                lon_str = f"{lon:.6f}"
+                roi_min_str = f"{roi_min:.1f}"
+                roi_max_str = f"{roi_max:.1f}"
+                f.write(f"#data for grid [{i},{j}] with {grid_size} points, center at ({lat_str}, {lon_str}), x_size={x_size:.1f}m, y_size={y_size:.1f}m\n")
+                f.write(f"#roi_distance_min = max(x_size, y_size)/2.0\n")
+                f.write(f"#roi_distance_max = roi_distance_min * 1.5\n")
+                name = session_name_template.format(
+                lat=lat,                      lon=lon,
+                roi_distance_min=roi_min_str, roi_distance_max=roi_max_str 
+                )
+                f.write(f"#data name for 3dgs {name}\n")
+                f.write(f"/usr/bin/python3 ./03_get_roi_data.py                            --lat {lat_str} --lon {lon_str} --roi_distance_min {roi_min_str} --roi_distance_max {roi_max_str}\n")
+                f.write(f"/usr/bin/python3 ./04_resorted_by_time.py                        --lat {lat_str} --lon {lon_str} --roi_distance_min {roi_min_str} --roi_distance_max {roi_max_str}\n")
+                f.write(f"/usr/bin/python3 ./05_get_roi_img_and_06_nu_sampling_for_3dgs.py --lat {lat_str} --lon {lon_str} --roi_distance_min {roi_min_str} --roi_distance_max {roi_max_str}\n")
+                f.write("\n\n")
+        print(f"已导出批量shell命令，执行可以生成每个块 3dgs 需要的数据结构: {sh_path}")
+
     def export_grids_to_kml(self, kml_path):
         """
         依次读取self.all_grids中的[i, j, grid_size, lat, lon, x_size, y_size]，以lat/lon为中心，x/y为边长，输出矩形Polygon到KML。
@@ -159,6 +194,21 @@ class PointCloudGridDivider:
             f.write('  </Document>\n')
             f.write('</kml>\n')
         print(f"已导出所有grid到KML: {kml_path}")
+
+    def create_grid_folders(self):
+        """
+        根据self.all_grids创建目录：
+        grid_i_j_lat_lon_x_size_y_size
+        """
+        os.makedirs(self.output_dir, exist_ok=True)
+        created_count = 0
+        for grid in self.all_grids:
+            i, j, grid_size, lat, lon, x_size, y_size = grid
+            folder_name = f"grid_{i}_{j}_{lat:.6f}_{lon:.6f}_{x_size:.1f}_{y_size:.1f}"
+            folder_path = os.path.join(self.output_dir, folder_name)
+            os.makedirs(folder_path, exist_ok=True)
+            created_count += 1
+        print(f"已创建grid目录: {created_count} 个, 输出路径: {self.output_dir}")
 
 
     def divideAndSave(self, cloud):
@@ -358,7 +408,7 @@ class PointCloudGridDivider:
                     cloud = pcl.PointCloud()
                     cloud.from_array(np.array(self.grids[i][j]))
                     # 4. 保存为PCD文件
-                    pcl.save(cloud, filename)
+                    # pcl.save(cloud, filename)
                     
                     utm_x = center_x + self.utm_x0
                     utm_y = center_y + self.utm_y0
@@ -370,6 +420,8 @@ class PointCloudGridDivider:
                     self.non_empty_grids += 1
                     
         self.export_grids_to_kml(self.output_dir + "grids.kml")
+        self.export_batch_sh_for_3dgs(self.output_dir + "batch_scipt_for_get_grid_data_for_3dgs.sh")
+        # self.create_grid_folders() #! 新的目录结构， testing
 
     def world_to_image(self, x, y, img_width=1200, img_height=1200, margin=100):
         max_range = max(self.x_range, self.y_range)
@@ -431,6 +483,9 @@ def main():
     config = load_config()
     search_params = config.get('search_params', {})
 
+    output_dir = "/data/exported_roi_data/"
+    os.makedirs(output_dir, exist_ok=True)
+
     # 获取所有session目录
     session_data_dir = '/data/dwm_data/'
     session_dirs = get_all_session_dirs(session_data_dir)
@@ -468,7 +523,7 @@ def main():
                 print(f"[WARN] Failed to read {pf}: {e}")
     print(f"  总计读取到{len(all_poses)}个位姿")
 
-    cloud = save_pose_to_pcd(all_poses, "/data/poses_cloud.pcd")
+    cloud = save_pose_to_pcd(all_poses, output_dir + "poses_cloud.pcd")
 
     if cloud is None:
         print("Error: Failed to create point cloud from poses. Exiting.")
@@ -477,17 +532,29 @@ def main():
 
     print(f"Original Point Cloud: {cloud.size} points")
     divider = PointCloudGridDivider()
+    # grid的基本大小，单位米。最终网格大小会根据点云分布进行调整，但不会超过base_grid_size * max_aspect_ratio。
     divider.base_grid_size = 100.0
     divider.max_aspect_ratio = 1.25
-    divider.min_points_per_grid = 20
-    divider.use_voxel_filter = True
-    divider.voxel_leaf_size = 0.5
-    divider.max_test_points = 0
-    divider.setOutputDir("/data/3dgs_merged_result/test/")
-    # divider.setUTMOrigin(all_poses[0][0], all_poses[0][1], all_poses[0][2])
-    divider.setUTMZone(51)  # Example UTM zone, replace with actual value
+    # 每个网格至少包含的点数，如果一个网格的点数少于这个值，会尝试与相邻网格合并，或者最终被丢弃（不保存）。设置为0表示不进行基于点数的合并。
+    divider.min_points_per_grid = 50
+
+    # 没使用
+    # divider.use_voxel_filter = True
+    # divider.voxel_leaf_size = 0.5
+    # divider.max_test_points = 0
+
+    # UTM分区号。
+    divider.setUTMZone(51)
+
+    # ! 先设置 输出目录，最终的网格PCD文件和可视化结果都会保存在这个目录下
+    divider.setOutputDir(output_dir + "grids/")
+
+    # utm下的位置
     divider.divideAndSave(cloud)
+    
+    # 可视化划分结果，保存为PNG图片
     divider.visualize()
+
 
 if __name__ == "__main__":
     main()

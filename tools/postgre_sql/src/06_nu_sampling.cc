@@ -81,7 +81,7 @@ int main(int argc, char *argv[]) {
   std::unique_ptr<NonUniformSampling> sampling_ptr =
       std::make_unique<NonUniformSampling>();
   sampling_ptr->SetSensorModel(sensor_model_ptr);
-  sampling_ptr->SetPaths(output_folder / "vehicle_geo_pose", images_folder,
+  sampling_ptr->SetPaths(output_folder / "vehicle_geo_pose_opt", images_folder,
                         clouds_folder, masks_folder, hdmapFolder);
   sampling_ptr->LoadDataIndex();
 

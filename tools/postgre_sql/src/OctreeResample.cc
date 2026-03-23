@@ -328,7 +328,9 @@ typename pcl::PointCloud<PointT>::Ptr OctreeResample<PointT>::resample(
 
     float minDist = std::numeric_limits<float>::max();
     for (size_t i = 0; i < roadPoints.size(); i++) {
-      float d = (voxelCenter - roadPoints[i]).norm();
+      // float d = (voxelCenter - roadPoints[i]).norm();
+      float d = std::sqrt((voxelCenter.x() - roadPoints[i].x()) * (voxelCenter.x() - roadPoints[i].x()) +
+                          (voxelCenter.y() - roadPoints[i].y()) * (voxelCenter.y() - roadPoints[i].y()) );
       if (minDist > d) {
         minDist = d;
       }
@@ -365,6 +367,32 @@ typename pcl::PointCloud<PointT>::Ptr OctreeResample<PointT>::resample(
     vg.setIndices(indexVector);
     vg.setLeafSize(voxelSize, voxelSize, voxelSize);
     vg.filter(*filtered);
+
+    // if (0)
+    // todo 只对地面附近的点云进行离群点移除  平面距离即可
+    if (voxelSize < 0.15)
+    {
+      // 靠近行车道的点云，应该点数较多，// 如果点数过少，说明是空中漂浮的点，直接丢弃 
+      // ! 效果很好 20260319 by ln
+      if (filtered->size() < 15)
+      {
+         filtered->points.clear();
+         filtered->width = 0;
+         filtered->height = 1;
+         filtered->is_dense = true;
+         std::cout << "Node | Points too less . clear all pts  ...... " << std::endl;
+         continue;
+      }
+      std::cout << "Node | Points Before: " << filtered->size() << std::endl;
+      const int mean_k = 20;
+      const double stddev_mul_thresh = 2.0;
+      pcl::StatisticalOutlierRemoval< PointT > sor;
+      sor.setInputCloud(filtered);
+      sor.setMeanK(mean_k);
+      sor.setStddevMulThresh(stddev_mul_thresh);
+      sor.filter(*filtered);
+      std::cout << "Node | Points After SOR: " << filtered->size() << std::endl;
+    }
 
     // 判断是否在行车道范围内，对车道范围内的点云做特殊处理
     if (minDist <= voxel_size_ && isDynamicRemove) {
